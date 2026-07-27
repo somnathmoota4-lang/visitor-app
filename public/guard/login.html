@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Guard Login</title>
+  <style>
+    body { font-family: Arial; padding: 20px; max-width: 400px; margin: auto; }
+    input { width: 100%; padding: 10px; margin: 10px 0; }
+    button { width: 100%; padding: 12px; background: #1a73e8; color: white; border: none; font-size: 16px; }
+  </style>
+</head>
+<body>
+  <h2>Guard Login</h2>
+  <input type="email" id="email" placeholder="Email">
+  <input type="password" id="password" placeholder="Password">
+  <button onclick="login()">Login</button>
+  <p id="error"></p>
+  <script>
+    async function login() {
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      const data = await res.json();
+      if (data.token) {
+        localStorage.setItem('guardToken', data.token);
+        window.location = 'checkin.html';
+      } else {
+        document.getElementById('error').innerText = data.error;
+      }
+    }
+  </script>
+</body>
+</html>
