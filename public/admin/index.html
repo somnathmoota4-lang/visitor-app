@@ -21,8 +21,8 @@
   <div id="loginSection">
     <div class="section">
       <h3>Admin Login</h3>
-      <input type="email" id="adminEmail" placeholder="Email" value="admin@building.com">
-      <input type="password" id="adminPassword" placeholder="Password" value="Admin@123">
+      <input type="email" id="adminEmail" placeholder="Email">
+      <input type="password" id="adminPassword" placeholder="Password">
       <button onclick="adminLogin()">Login</button>
       <p class="err" id="loginError"></p>
     </div>
@@ -87,6 +87,7 @@
       });
       const rooms = await res.json();
       const select = document.getElementById('ownerRoom');
+      select.innerHTML = '<option value="">Select Room</option>';
       rooms.forEach(room => {
         const opt = document.createElement('option');
         opt.value = room._id;
