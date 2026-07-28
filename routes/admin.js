@@ -12,7 +12,24 @@ router.post('/guards', async (req, res) => {
   const { name, email, password } = req.body;
   try {
     const guard = await User.create({ name, email, password, role: 'guard', status: 'approved' });
-    res.json({ message: 'Guard created', guard });
+    res.json({ message: 'Guard created successfully', guard });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Create Owner directly (approved)
+router.post('/owners/create', async (req, res) => {
+  const { name, email, password, roomId } = req.body;
+  try {
+    const owner = await User.create({
+      name, email, password,
+      role: 'owner',
+      status: 'approved',
+      room: roomId
+    });
+    await Room.findByIdAndUpdate(roomId, { owner: owner._id, isAvailable: false });
+    res.json({ message: 'Owner created successfully', owner });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
@@ -24,7 +41,7 @@ router.get('/owners/pending', async (req, res) => {
   res.json(owners);
 });
 
-// Approve owner (generate activation token)
+// Approve/Reject owner
 router.post('/owners/verify', async (req, res) => {
   const { ownerId, action } = req.body;
   const owner = await User.findById(ownerId).populate('room');
@@ -34,9 +51,8 @@ router.post('/owners/verify', async (req, res) => {
     owner.activationToken = token;
     owner.status = 'pending_activation';
     await owner.save();
-    // Simulate sending email
     console.log(`Activation link: http://localhost:5000/owner/activate.html?token=${token}`);
-    res.json({ message: 'Owner approved, activation email sent (see console)' });
+    res.json({ message: 'Owner approved' });
   } else {
     owner.status = 'rejected';
     await owner.save();
@@ -44,13 +60,13 @@ router.post('/owners/verify', async (req, res) => {
   }
 });
 
-// All visitors (for log)
+// Get all visitors
 router.get('/visitors', async (req, res) => {
   const visitors = await Visitor.find().populate('room owner guard').sort({ entryTime: -1 }).limit(200);
   res.json(visitors);
 });
 
-// Get all rooms (for management)
+// Get all rooms
 router.get('/rooms', async (req, res) => {
   const rooms = await Room.find().populate('owner', 'name');
   res.json(rooms);
