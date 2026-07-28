@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin Dashboard</title>
+  <style>
+    body { font-family: Arial; padding: 15px; max-width: 600px; margin: auto; background: #f5f5f5; }
+    h2 { color: #1a73e8; }
+    .section { background: white; padding: 20px; margin: 15px 0; border-radius: 10px; box-shadow: 0 1px 5px rgba(0,0,0,0.1); }
+    input, select { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #ccc; border-radius: 5px; }
+    button { padding: 10px 20px; background: #1a73e8; color: white; border: none; border-radius: 5px; cursor: pointer; margin: 5px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { padding: 8px; border: 1px solid #ddd; text-align: left; }
+    th { background: #f0f0f0; }
+    .msg { color: green; margin: 10px 0; }
+    .err { color: red; }
+  </style>
+</head>
+<body>
+  <h2>🛡️ Admin Dashboard</h2>
+  <div id="loginSection">
+    <div class="section">
+      <h3>Admin Login</h3>
+      <input type="email" id="adminEmail" placeholder="Email" value="admin@building.com">
+      <input type="password" id="adminPassword" placeholder="Password" value="Admin@123">
+      <button onclick="adminLogin()">Login</button>
+      <p class="err" id="loginError"></p>
+    </div>
+  </div>
+
+  <div id="adminPanel" style="display:none;">
+    <div class="section">
+      <h3>Create Guard Account</h3>
+      <input type="text" id="guardName" placeholder="Guard Name">
+      <input type="email" id="guardEmail" placeholder="Guard Email">
+      <input type="password" id="guardPassword" placeholder="Password">
+      <button onclick="createGuard()">Create Guard</button>
+      <p class="msg" id="guardMsg"></p>
+    </div>
+
+    <div class="section">
+      <h3>Create Owner Account</h3>
+      <input type="text" id="ownerName" placeholder="Owner Name">
+      <input type="email" id="ownerEmail" placeholder="Owner Email">
+      <input type="password" id="ownerPassword" placeholder="Password">
+      <select id="ownerRoom">
+        <option value="">Select Room</option>
+      </select>
+      <button onclick="createOwner()">Create Owner</button>
+      <p class="msg" id="ownerMsg"></p>
+    </div>
+
+    <div class="section">
+      <h3>All Visitors</h3>
+      <div id="visitorTable"></div>
+    </div>
+
+    <button onclick="logout()" style="background:#666;">Logout</button>
+  </div>
+
+  <script>
+    let adminToken = '';
+
+    async function adminLogin() {
+      const email = document.getElementById('adminEmail').value;
+      const password = document.getElementById('adminPassword').value;
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      const data = await res.json();
+      if (data.token) {
+        adminToken = data.token;
+        document.getElementById('loginSection').style.display = 'none';
+        document.getElementById('adminPanel').style.display = 'block';
+        loadRooms();
+        loadVisitors();
+      } else {
+        document.getElementById('loginError').innerText = data.error || 'Login failed';
+      }
+    }
+
+    async function loadRooms() {
+      const res = await fetch('/api/admin/rooms', {
+        headers: { 'Authorization': `Bearer ${adminToken}` }
+      });
+      const rooms = await res.json();
+      const select = document.getElementById('ownerRoom');
+      rooms.forEach(room => {
+        const opt = document.createElement('option');
+        opt.value = room._id;
+        opt.textContent = `Floor ${room.floor} - Room ${room.roomNumber} ${room.owner ? '(Occupied)' : '(Available)'}`;
+        if (room.owner) opt.disabled = true;
+        select.appendChild(opt);
+      });
+    }
+
+    async function createGuard() {
+      const name = document.getElementById('guardName').value;
+      const email = document.getElementById('guardEmail').value;
+      const password = document.getElementById('guardPassword').value;
+      const res = await fetch('/api/admin/guards', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` },
+        body: JSON.stringify({ name, email, password })
+      });
+      const data = await res.json();
+      document.getElementById('guardMsg').innerText = data.message || 'Guard created!';
+    }
+
+    async function createOwner() {
+      const name = document.getElementById('ownerName').value;
+      const email = document.getElementById('ownerEmail').value;
+      const password = document.getElementById('ownerPassword').value;
+      const room = document.getElementById('ownerRoom').value;
+      const res = await fetch('/api/admin/owners/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` },
+        body: JSON.stringify({ name, email, password, roomId: room })
+      });
+      const data = await res.json();
+      document.getElementById('ownerMsg').innerText = data.message || 'Owner created!';
+    }
+
+    async function loadVisitors() {
+      const res = await fetch('/api/admin/visitors', {
+        headers: { 'Authorization': `Bearer ${adminToken}` }
+      });
+      const visitors = await res.json();
+      let html = '<table><tr><th>Name</th><th>Phone</th><th>Purpose</th><th>Room</th><th>Time</th><th>Status</th></tr>';
+      visitors.forEach(v => {
+        html += `<tr>
+          <td>${v.name}</td>
+          <td>${v.phone}</td>
+          <td>${v.purpose}</td>
+          <td>${v.room ? v.room.roomNumber : ''}</td>
+          <td>${new Date(v.entryTime).toLocaleString()}</td>
+          <td>${v.status}</td>
+        </tr>`;
+      });
+      html += '</table>';
+      document.getElementById('visitorTable').innerHTML = html;
+    }
+
+    function logout() {
+      adminToken = '';
+      document.getElementById('loginSection').style.display = 'block';
+      document.getElementById('adminPanel').style.display = 'none';
+    }
+  </script>
+</body>
+</html>
