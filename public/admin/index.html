@@ -61,26 +61,24 @@
   <script>
     let adminToken = '';
 
-    async function adminLogin() {
-      const email = document.getElementById('adminEmail').value;
-      const password = document.getElementById('adminPassword').value;
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-      });
-      const data = await res.json();
-      if (data.token) {
-        adminToken = data.token;
-        document.getElementById('loginSection').style.display = 'none';
-        document.getElementById('adminPanel').style.display = 'block';
-        loadRooms();
-        loadVisitors();
-      } else {
-        document.getElementById('loginError').innerText = data.error || 'Login failed';
-      }
-    }
-
+    async function loadRooms() {
+  try {
+    const res = await fetch('/api/admin/rooms', {
+      headers: { 'Authorization': `Bearer ${adminToken}` }
+    });
+    const rooms = await res.json();
+    const select = document.getElementById('ownerRoom');
+    select.innerHTML = '<option value="">Select Room</option>';
+    rooms.forEach(room => {
+      const opt = document.createElement('option');
+      opt.value = room._id;
+      opt.textContent = `Floor ${room.floor} - Room ${room.roomNumber}`;
+      select.appendChild(opt);
+    });
+  } catch (err) {
+    console.error('Error loading rooms:', err);
+  }
+}
     async function loadRooms() {
       const res = await fetch('/api/admin/rooms', {
         headers: { 'Authorization': `Bearer ${adminToken}` }
