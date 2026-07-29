@@ -10,14 +10,6 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, { cors: { origin: '*' } });
 
-// Firebase Admin setup (we'll initialize after we get the key)
-const admin = require('firebase-admin');
-// We'll initialize Firebase only when the key file exists
-if (process.env.FIREBASE_PROJECT_ID) {
-  // For now, we'll skip actual Firebase init; push notifications will be added later.
-  // admin.initializeApp({...});
-}
-
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use('/uploads', express.static('public/uploads'));
@@ -45,6 +37,7 @@ app.set('io', io);
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => {
     console.log('MongoDB connected');
+    
     // Create default super admin if not exists
     const User = require('./models/User');
     User.findOne({ role: 'super_admin' }).then(adminUser => {
@@ -58,18 +51,23 @@ mongoose.connect(process.env.MONGODB_URI)
         }).then(() => console.log('Default super admin created: admin@building.com / Admin@123'));
       }
     });
-    // Initialize rooms
+    
+    // Delete existing rooms and create fresh (fixes duplicates)
     const Room = require('./models/Room');
-const rooms = [];
-for (let floor = 1; floor <= 23; floor++) {
-  for (let roomNum = 1; roomNum <= 13; roomNum++) {
-    rooms.push({
-      floor,
-      roomNumber: `${floor}${String(roomNum).padStart(2, '0')}`
+    Room.deleteMany({}).then(() => {
+      console.log('Old rooms cleared');
+      const rooms = [];
+      for (let floor = 1; floor <= 23; floor++) {
+        for (let roomNum = 1; roomNum <= 13; roomNum++) {
+          rooms.push({
+            floor,
+            roomNumber: `${floor}${String(roomNum).padStart(2, '0')}`
+          });
+        }
+      }
+      Room.insertMany(rooms).then(() => console.log('299 rooms created (23 floors x 13 rooms)'));
     });
-  }
-}
-Room.insertMany(rooms).then(() => console.log('Rooms initialized')).catch(err => console.log('Rooms may already exist:', err.message));
-    server.listen(process.env.PORT, () => console.log(`Server running on port ${process.env.PORT}`));
+    
+    server.listen(process.env.PORT || 5000, () => console.log(`Server running on port ${process.env.PORT || 5000}`));
   })
   .catch(err => console.error('MongoDB connection error:', err));
