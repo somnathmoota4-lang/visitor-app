@@ -60,20 +60,16 @@ mongoose.connect(process.env.MONGODB_URI)
     });
     // Initialize rooms
     const Room = require('./models/Room');
-    Room.countDocuments().then(count => {
-      if (count === 0) {
-        const rooms = [];
-        for (let floor = 1; floor <= 23; floor++) {
-          for (let roomNum = 1; roomNum <= 13; roomNum++) {
-            rooms.push({
-              floor,
-              roomNumber: `${floor}${String(roomNum).padStart(2, '0')}`
-            });
-          }
-        }
-        Room.insertMany(rooms).then(() => console.log('Rooms initialized'));
-      }
+const rooms = [];
+for (let floor = 1; floor <= 23; floor++) {
+  for (let roomNum = 1; roomNum <= 13; roomNum++) {
+    rooms.push({
+      floor,
+      roomNumber: `${floor}${String(roomNum).padStart(2, '0')}`
     });
+  }
+}
+Room.insertMany(rooms).then(() => console.log('Rooms initialized')).catch(err => console.log('Rooms may already exist:', err.message));
     server.listen(process.env.PORT, () => console.log(`Server running on port ${process.env.PORT}`));
   })
   .catch(err => console.error('MongoDB connection error:', err));
