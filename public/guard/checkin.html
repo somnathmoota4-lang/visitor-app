@@ -2,33 +2,127 @@
 <html>
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Check-in</title>
-  <link rel="stylesheet" href="style.css">
+  <title>Visitor Check-in</title>
+  <style>
+    body { font-family: Arial; padding: 15px; max-width: 500px; margin: auto; background: #f5f5f5; }
+    h2 { color: #1a237e; }
+    .card { background: white; padding: 20px; border-radius: 10px; margin: 10px 0; box-shadow: 0 1px 5px rgba(0,0,0,0.1); }
+    input, select, button { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ccc; border-radius: 5px; font-size: 16px; box-sizing: border-box; }
+    button { background: #1a237e; color: white; border: none; font-weight: bold; }
+    .msg { padding: 10px; border-radius: 5px; margin: 10px 0; }
+    .success { background: #e8f5e9; color: #2e7d32; }
+    .error { background: #ffebee; color: #c62828; }
+  </style>
 </head>
 <body>
-  <h2>Visitor Check-in</h2>
-  <form id="checkinForm" enctype="multipart/form-data">
-    <input type="text" id="name" placeholder="Visitor Name" required>
-    <input type="tel" id="phone" placeholder="Phone" required>
-    <select id="purpose" required>
-      <option value="">Select Purpose</option>
-      <option>Meeting</option>
-      <option>Delivery</option>
-      <option>Maintenance</option>
-      <option>Personal Visit</option>
-    </select>
-    <select id="roomId" required>
-      <option value="">Select Room</option>
-    </select>
-    <label>Take Photo:</label>
-    <input type="file" id="photo" accept="image/*" capture="environment" required>
-    <button type="submit">Check In</button>
-  </form>
-  <div id="waiting" style="display:none;">
-    <h3>Waiting for owner approval...</h3>
+  <div class="card">
+    <h2>📋 Visitor Check-in</h2>
+    <form id="checkinForm">
+      <input type="text" id="name" placeholder="Visitor Name" required>
+      <input type="tel" id="phone" placeholder="Phone Number" required>
+      <select id="purpose" required>
+        <option value="">Select Purpose</option>
+        <option>Meeting</option>
+        <option>Delivery</option>
+        <option>Maintenance</option>
+        <option>Personal Visit</option>
+        <option>Other</option>
+      </select>
+      <select id="roomId" required>
+        <option value="">Select Room</option>
+      </select>
+      <label style="font-size:14px;">Visitor Photo:</label>
+      <input type="file" id="photo" accept="image/*" capture="environment">
+      <button type="submit">✅ Check In</button>
+    </form>
+  </div>
+
+  <div id="waiting" class="card" style="display:none;">
+    <h3>⏳ Waiting for owner approval...</h3>
     <p id="statusMessage"></p>
   </div>
+
   <script src="/socket.io/socket.io.js"></script>
-  <script src="guard.js"></script>
+  <script>
+    var token = localStorage.getItem('guardToken');
+    if (!token) { window.location = 'login.html'; }
+
+    var socket = io();
+    var currentVisitId = null;
+
+    // Load rooms
+    fetch('/api/guard/rooms', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    })
+    .then(function(res) { return res.json(); })
+    .then(function(rooms) {
+      var select = document.getElementById('roomId');
+      rooms.forEach(function(room) {
+        if (room.owner) {
+          var opt = document.createElement('option');
+          opt.value = room._id;
+          opt.textContent = 'Floor ' + room.floor + ' - Room ' + room.roomNumber + ' (' + room.owner.name + ')';
+          select.appendChild(opt);
+        }
+      });
+      if (select.options.length === 1) {
+        select.innerHTML = '<option value="">No rooms with owners yet</option>';
+      }
+    })
+    .catch(function(err) {
+      console.log('Error loading rooms:', err);
+    });
+
+    document.getElementById('checkinForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      var formData = new FormData();
+      formData.append('name', document.getElementById('name').value);
+      formData.append('phone', document.getElementById('phone').value);
+      formData.append('purpose', document.getElementById('purpose').value);
+      formData.append('roomId', document.getElementById('roomId').value);
+      
+      var photoFile = document.getElementById('photo').files[0];
+      if (photoFile) {
+        formData.append('photo', photoFile);
+      }
+
+      fetch('/api/guard/checkin', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + token },
+        body: formData
+      })
+      .then(function(res) { return res.json(); })
+      .then(function(data) {
+        if (data.visitId) {
+          currentVisitId = data.visitId;
+          document.getElementById('checkinForm').style.display = 'none';
+          document.getElementById('waiting').style.display = 'block';
+          document.getElementById('statusMessage').innerText = 'Request sent to owner...';
+          socket.emit('joinRoom', currentVisitId);
+        } else {
+          alert(data.error || 'Error checking in');
+        }
+      })
+      .catch(function(err) {
+        alert('Connection error');
+      });
+    });
+
+    socket.on('owner_response', function(data) {
+      if (data.visitId === currentVisitId) {
+        if (data.status === 'approved') {
+          document.getElementById('statusMessage').innerHTML = '<span style="color:green;font-size:24px;">✅ APPROVED - Allow Entry</span>';
+        } else {
+          document.getElementById('statusMessage').innerHTML = '<span style="color:red;font-size:24px;">❌ REJECTED - Deny Entry</span>';
+        }
+        setTimeout(function() {
+          document.getElementById('checkinForm').style.display = 'block';
+          document.getElementById('waiting').style.display = 'none';
+          document.getElementById('checkinForm').reset();
+        }, 5000);
+      }
+    });
+  </script>
 </body>
 </html>
