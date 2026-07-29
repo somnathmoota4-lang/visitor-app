@@ -7,7 +7,7 @@
     body { font-family: Arial; padding: 15px; max-width: 600px; margin: auto; background: #f5f5f5; }
     h2 { color: #1a73e8; }
     .section { background: white; padding: 20px; margin: 15px 0; border-radius: 10px; box-shadow: 0 1px 5px rgba(0,0,0,0.1); }
-    input, select { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #ccc; border-radius: 5px; }
+    input, select { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
     button { padding: 10px 20px; background: #1a73e8; color: white; border: none; border-radius: 5px; cursor: pointer; margin: 5px; }
     table { width: 100%; border-collapse: collapse; margin-top: 10px; }
     th, td { padding: 8px; border: 1px solid #ddd; text-align: left; }
@@ -17,7 +17,8 @@
   </style>
 </head>
 <body>
-  <h2>🛡️ Admin Dashboard</h2>
+  <h2>Admin Dashboard</h2>
+  
   <div id="loginSection">
     <div class="section">
       <h3>Admin Login</h3>
@@ -52,94 +53,130 @@
 
     <div class="section">
       <h3>All Visitors</h3>
-      <div id="visitorTable"></div>
+      <div id="visitorTable">No visitors yet</div>
     </div>
 
-    <button onclick="logout()" style="background:#666;">Logout</button>
+    <button onclick="logout()" style="background:#666;color:white;padding:10px;width:100%;border:none;border-radius:5px;">Logout</button>
   </div>
 
   <script>
-    let adminToken = '';
+    var adminToken = '';
 
-    async function loadRooms() {
-  try {
-    const res = await fetch('/api/admin/rooms', {
-      headers: { 'Authorization': `Bearer ${adminToken}` }
-    });
-    const rooms = await res.json();
-    const select = document.getElementById('ownerRoom');
-    select.innerHTML = '<option value="">Select Room</option>';
-    rooms.forEach(room => {
-      const opt = document.createElement('option');
-      opt.value = room._id;
-      opt.textContent = `Floor ${room.floor} - Room ${room.roomNumber}`;
-      select.appendChild(opt);
-    });
-  } catch (err) {
-    console.error('Error loading rooms:', err);
-  }
-}
-    async function loadRooms() {
-      const res = await fetch('/api/admin/rooms', {
-        headers: { 'Authorization': `Bearer ${adminToken}` }
-      });
-      const rooms = await res.json();
-      const select = document.getElementById('ownerRoom');
-      select.innerHTML = '<option value="">Select Room</option>';
-      rooms.forEach(room => {
-        const opt = document.createElement('option');
-        opt.value = room._id;
-        opt.textContent = `Floor ${room.floor} - Room ${room.roomNumber} ${room.owner ? '(Occupied)' : '(Available)'}`;
-        if (room.owner) opt.disabled = true;
-        select.appendChild(opt);
-      });
-    }
-
-    async function createGuard() {
-      const name = document.getElementById('guardName').value;
-      const email = document.getElementById('guardEmail').value;
-      const password = document.getElementById('guardPassword').value;
-      const res = await fetch('/api/admin/guards', {
+    function adminLogin() {
+      var email = document.getElementById('adminEmail').value;
+      var password = document.getElementById('adminPassword').value;
+      
+      fetch('/api/auth/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` },
-        body: JSON.stringify({ name, email, password })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email, password: password })
+      })
+      .then(function(res) { return res.json(); })
+      .then(function(data) {
+        if (data.token) {
+          adminToken = data.token;
+          document.getElementById('loginSection').style.display = 'none';
+          document.getElementById('adminPanel').style.display = 'block';
+          loadRooms();
+          loadVisitors();
+        } else {
+          document.getElementById('loginError').innerText = data.error || 'Login failed';
+        }
+      })
+      .catch(function(err) {
+        document.getElementById('loginError').innerText = 'Connection error';
       });
-      const data = await res.json();
-      document.getElementById('guardMsg').innerText = data.message || 'Guard created!';
     }
 
-    async function createOwner() {
-      const name = document.getElementById('ownerName').value;
-      const email = document.getElementById('ownerEmail').value;
-      const password = document.getElementById('ownerPassword').value;
-      const room = document.getElementById('ownerRoom').value;
-      const res = await fetch('/api/admin/owners/create', {
+    function loadRooms() {
+      fetch('/api/admin/rooms', {
+        headers: { 'Authorization': 'Bearer ' + adminToken }
+      })
+      .then(function(res) { return res.json(); })
+      .then(function(rooms) {
+        var select = document.getElementById('ownerRoom');
+        select.innerHTML = '<option value="">Select Room</option>';
+        rooms.forEach(function(room) {
+          var opt = document.createElement('option');
+          opt.value = room._id;
+          opt.textContent = 'Floor ' + room.floor + ' - Room ' + room.roomNumber;
+          select.appendChild(opt);
+        });
+      })
+      .catch(function(err) {
+        console.log('Error loading rooms:', err);
+      });
+    }
+
+    function createGuard() {
+      var name = document.getElementById('guardName').value;
+      var email = document.getElementById('guardEmail').value;
+      var password = document.getElementById('guardPassword').value;
+      
+      fetch('/api/admin/guards', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` },
-        body: JSON.stringify({ name, email, password, roomId: room })
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + adminToken
+        },
+        body: JSON.stringify({ name: name, email: email, password: password })
+      })
+      .then(function(res) { return res.json(); })
+      .then(function(data) {
+        document.getElementById('guardMsg').innerText = data.message || 'Guard created!';
+      })
+      .catch(function(err) {
+        document.getElementById('guardMsg').innerText = 'Error creating guard';
       });
-      const data = await res.json();
-      document.getElementById('ownerMsg').innerText = data.message || 'Owner created!';
     }
 
-    async function loadVisitors() {
-      const res = await fetch('/api/admin/visitors', {
-        headers: { 'Authorization': `Bearer ${adminToken}` }
+    function createOwner() {
+      var name = document.getElementById('ownerName').value;
+      var email = document.getElementById('ownerEmail').value;
+      var password = document.getElementById('ownerPassword').value;
+      var room = document.getElementById('ownerRoom').value;
+      
+      fetch('/api/admin/owners/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + adminToken
+        },
+        body: JSON.stringify({ name: name, email: email, password: password, roomId: room })
+      })
+      .then(function(res) { return res.json(); })
+      .then(function(data) {
+        document.getElementById('ownerMsg').innerText = data.message || 'Owner created!';
+        loadRooms();
+      })
+      .catch(function(err) {
+        document.getElementById('ownerMsg').innerText = 'Error creating owner';
       });
-      const visitors = await res.json();
-      let html = '<table><tr><th>Name</th><th>Phone</th><th>Purpose</th><th>Room</th><th>Time</th><th>Status</th></tr>';
-      visitors.forEach(v => {
-        html += `<tr>
-          <td>${v.name}</td>
-          <td>${v.phone}</td>
-          <td>${v.purpose}</td>
-          <td>${v.room ? v.room.roomNumber : ''}</td>
-          <td>${new Date(v.entryTime).toLocaleString()}</td>
-          <td>${v.status}</td>
-        </tr>`;
+    }
+
+    function loadVisitors() {
+      fetch('/api/admin/visitors', {
+        headers: { 'Authorization': 'Bearer ' + adminToken }
+      })
+      .then(function(res) { return res.json(); })
+      .then(function(visitors) {
+        var html = '<table><tr><th>Name</th><th>Phone</th><th>Purpose</th><th>Room</th><th>Time</th><th>Status</th></tr>';
+        visitors.forEach(function(v) {
+          html += '<tr>' +
+            '<td>' + v.name + '</td>' +
+            '<td>' + v.phone + '</td>' +
+            '<td>' + v.purpose + '</td>' +
+            '<td>' + (v.room ? v.room.roomNumber : '') + '</td>' +
+            '<td>' + new Date(v.entryTime).toLocaleString() + '</td>' +
+            '<td>' + v.status + '</td>' +
+            '</tr>';
+        });
+        html += '</table>';
+        document.getElementById('visitorTable').innerHTML = html;
+      })
+      .catch(function(err) {
+        console.log('Error loading visitors:', err);
       });
-      html += '</table>';
-      document.getElementById('visitorTable').innerHTML = html;
     }
 
     function logout() {
