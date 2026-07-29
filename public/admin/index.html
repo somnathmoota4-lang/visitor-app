@@ -4,63 +4,112 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Admin Dashboard</title>
   <style>
-    body { font-family: Arial; padding: 15px; max-width: 600px; margin: auto; background: #f5f5f5; }
-    h2 { color: #1a73e8; }
-    .section { background: white; padding: 20px; margin: 15px 0; border-radius: 10px; box-shadow: 0 1px 5px rgba(0,0,0,0.1); }
-    input, select { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
-    button { padding: 10px 20px; background: #1a73e8; color: white; border: none; border-radius: 5px; cursor: pointer; margin: 5px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-    th, td { padding: 8px; border: 1px solid #ddd; text-align: left; }
-    th { background: #f0f0f0; }
-    .msg { color: green; margin: 10px 0; }
-    .err { color: red; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; min-height: 100vh; }
+    .header { background: #1a237e; color: white; padding: 20px; text-align: center; }
+    .container { max-width: 500px; margin: 20px auto; padding: 15px; }
+    .card { background: white; padding: 20px; margin: 15px 0; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .card h3 { color: #1a237e; margin-bottom: 15px; font-size: 18px; }
+    input, select, button { width: 100%; padding: 12px; margin: 8px 0; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px; }
+    button { background: #1a237e; color: white; border: none; font-weight: bold; cursor: pointer; }
+    button:hover { background: #283593; }
+    .btn-green { background: #2e7d32; }
+    .btn-red { background: #c62828; }
+    .msg { padding: 10px; border-radius: 5px; margin: 10px 0; }
+    .success { background: #e8f5e9; color: #2e7d32; }
+    .error { background: #ffebee; color: #c62828; }
+    .floor-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 10px 0; }
+    .floor-btn { padding: 12px; background: #e3f2fd; border: 2px solid #1a237e; border-radius: 8px; text-align: center; cursor: pointer; font-weight: bold; }
+    .floor-btn.active { background: #1a237e; color: white; }
+    .room-list { max-height: 300px; overflow-y: auto; margin: 10px 0; }
+    .room-item { padding: 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+    .room-item:hover { background: #f5f5f5; }
+    .badge { padding: 4px 10px; border-radius: 12px; font-size: 12px; }
+    .badge-occupied { background: #ffebee; color: #c62828; }
+    .badge-available { background: #e8f5e9; color: #2e7d32; }
   </style>
 </head>
 <body>
-  <h2>Admin Dashboard</h2>
-  
-  <div id="loginSection">
-    <div class="section">
-      <h3>Admin Login</h3>
-      <input type="email" id="adminEmail" placeholder="Email">
-      <input type="password" id="adminPassword" placeholder="Password">
-      <button onclick="adminLogin()">Login</button>
-      <p class="err" id="loginError"></p>
-    </div>
+  <div class="header">
+    <h1>🏢 Building Admin</h1>
   </div>
 
-  <div id="adminPanel" style="display:none;">
-    <div class="section">
-      <h3>Create Guard Account</h3>
-      <input type="text" id="guardName" placeholder="Guard Name">
-      <input type="email" id="guardEmail" placeholder="Guard Email">
-      <input type="password" id="guardPassword" placeholder="Password">
-      <button onclick="createGuard()">Create Guard</button>
-      <p class="msg" id="guardMsg"></p>
+  <div class="container">
+    <!-- Login -->
+    <div id="loginSection">
+      <div class="card">
+        <h3>🔐 Admin Login</h3>
+        <input type="email" id="adminEmail" placeholder="Email address">
+        <input type="password" id="adminPassword" placeholder="Password">
+        <button onclick="adminLogin()">Login</button>
+        <p class="msg error" id="loginError" style="display:none;"></p>
+      </div>
     </div>
 
-    <div class="section">
-      <h3>Create Owner Account</h3>
-      <input type="text" id="ownerName" placeholder="Owner Name">
-      <input type="email" id="ownerEmail" placeholder="Owner Email">
-      <input type="password" id="ownerPassword" placeholder="Password">
-      <select id="ownerRoom">
-        <option value="">Select Room</option>
-      </select>
-      <button onclick="createOwner()">Create Owner</button>
-      <p class="msg" id="ownerMsg"></p>
-    </div>
+    <!-- Dashboard -->
+    <div id="adminPanel" style="display:none;">
+      <div class="card">
+        <h3>📊 Quick Actions</h3>
+        <button onclick="showTab('floors')">🏠 View Rooms</button>
+        <button onclick="showTab('createOwner')" style="margin-top:5px;">👤 Create Owner</button>
+        <button onclick="showTab('createGuard')" style="margin-top:5px;">🛡️ Create Guard</button>
+        <button onclick="showTab('visitors')" style="margin-top:5px;">📋 Visitor Log</button>
+      </div>
 
-    <div class="section">
-      <h3>All Visitors</h3>
-      <div id="visitorTable">No visitors yet</div>
-    </div>
+      <!-- Floors Tab -->
+      <div id="floorsTab" class="card" style="display:none;">
+        <h3>Select Floor</h3>
+        <div class="floor-grid" id="floorGrid"></div>
+        <h3 style="margin-top:15px;">Rooms on Floor <span id="selectedFloor">-</span></h3>
+        <div class="room-list" id="roomList">
+          <p style="color:#999;">Select a floor to see rooms</p>
+        </div>
+        <button onclick="showTab('floors')" style="background:#666;margin-top:10px;">Back</button>
+      </div>
 
-    <button onclick="logout()" style="background:#666;color:white;padding:10px;width:100%;border:none;border-radius:5px;">Logout</button>
+      <!-- Create Owner Tab -->
+      <div id="createOwnerTab" class="card" style="display:none;">
+        <h3>👤 Create Room Owner</h3>
+        <input type="text" id="ownerName" placeholder="Owner full name">
+        <input type="email" id="ownerEmail" placeholder="Owner email">
+        <input type="password" id="ownerPassword" placeholder="Set password">
+        <p style="font-size:14px;color:#666;">Select Floor → Select Room:</p>
+        <select id="ownerFloor" onchange="loadRoomsForOwner()">
+          <option value="">Choose floor</option>
+        </select>
+        <select id="ownerRoom">
+          <option value="">Choose room</option>
+        </select>
+        <button onclick="createOwner()" class="btn-green">Create Owner</button>
+        <p class="msg" id="ownerMsg" style="display:none;"></p>
+        <button onclick="showTab('floors')" style="background:#666;margin-top:10px;">Back</button>
+      </div>
+
+      <!-- Create Guard Tab -->
+      <div id="createGuardTab" class="card" style="display:none;">
+        <h3>🛡️ Create Security Guard</h3>
+        <input type="text" id="guardName" placeholder="Guard full name">
+        <input type="email" id="guardEmail" placeholder="Guard email">
+        <input type="password" id="guardPassword" placeholder="Set password">
+        <button onclick="createGuard()" class="btn-green">Create Guard</button>
+        <p class="msg" id="guardMsg" style="display:none;"></p>
+        <button onclick="showTab('floors')" style="background:#666;margin-top:10px;">Back</button>
+      </div>
+
+      <!-- Visitors Tab -->
+      <div id="visitorsTab" class="card" style="display:none;">
+        <h3>📋 Recent Visitors</h3>
+        <div id="visitorTable" style="font-size:14px;">Loading...</div>
+        <button onclick="showTab('floors')" style="background:#666;margin-top:10px;">Back</button>
+      </div>
+
+      <button onclick="logout()" class="btn-red" style="margin-top:10px;">🚪 Logout</button>
+    </div>
   </div>
 
   <script>
     var adminToken = '';
+    var allRooms = [];
 
     function adminLogin() {
       var email = document.getElementById('adminEmail').value;
@@ -77,35 +126,97 @@
           adminToken = data.token;
           document.getElementById('loginSection').style.display = 'none';
           document.getElementById('adminPanel').style.display = 'block';
-          loadRooms();
-          loadVisitors();
+          loadAllRooms();
         } else {
-          document.getElementById('loginError').innerText = data.error || 'Login failed';
+          var errEl = document.getElementById('loginError');
+          errEl.innerText = data.error || 'Login failed';
+          errEl.style.display = 'block';
         }
-      })
-      .catch(function(err) {
-        document.getElementById('loginError').innerText = 'Connection error';
       });
     }
 
-    function loadRooms() {
+    function loadAllRooms() {
       fetch('/api/admin/rooms', {
         headers: { 'Authorization': 'Bearer ' + adminToken }
       })
       .then(function(res) { return res.json(); })
       .then(function(rooms) {
-        var select = document.getElementById('ownerRoom');
-        select.innerHTML = '<option value="">Select Room</option>';
-        rooms.forEach(function(room) {
-          var opt = document.createElement('option');
-          opt.value = room._id;
-          opt.textContent = 'Floor ' + room.floor + ' - Room ' + room.roomNumber;
-          select.appendChild(opt);
-        });
-      })
-      .catch(function(err) {
-        console.log('Error loading rooms:', err);
+        allRooms = rooms;
+        setupFloorGrid();
+        setupOwnerFloorSelect();
       });
+    }
+
+    function setupFloorGrid() {
+      var floors = [];
+      allRooms.forEach(function(r) {
+        if (floors.indexOf(r.floor) === -1) floors.push(r.floor);
+      });
+      floors.sort(function(a,b) { return a - b; });
+      
+      var html = '';
+      floors.forEach(function(f) {
+        html += '<div class="floor-btn" onclick="selectFloor(' + f + ')">Floor ' + f + '</div>';
+      });
+      document.getElementById('floorGrid').innerHTML = html;
+    }
+
+    function selectFloor(floorNum) {
+      document.getElementById('selectedFloor').innerText = floorNum;
+      
+      var roomsOnFloor = allRooms.filter(function(r) { return r.floor === floorNum; });
+      var html = '';
+      roomsOnFloor.forEach(function(r) {
+        var statusClass = r.owner ? 'badge-occupied' : 'badge-available';
+        var statusText = r.owner ? 'Occupied' : 'Available';
+        html += '<div class="room-item">' +
+          '<span><strong>Room ' + r.roomNumber + '</strong></span>' +
+          '<span class="badge ' + statusClass + '">' + statusText + '</span>' +
+          '</div>';
+      });
+      document.getElementById('roomList').innerHTML = html;
+    }
+
+    function setupOwnerFloorSelect() {
+      var floors = [];
+      allRooms.forEach(function(r) {
+        if (floors.indexOf(r.floor) === -1) floors.push(r.floor);
+      });
+      floors.sort(function(a,b) { return a - b; });
+      
+      var select = document.getElementById('ownerFloor');
+      select.innerHTML = '<option value="">Choose floor</option>';
+      floors.forEach(function(f) {
+        select.innerHTML += '<option value="' + f + '">Floor ' + f + '</option>';
+      });
+    }
+
+    function loadRoomsForOwner() {
+      var floor = document.getElementById('ownerFloor').value;
+      var select = document.getElementById('ownerRoom');
+      select.innerHTML = '<option value="">Choose room</option>';
+      
+      if (!floor) return;
+      
+      var roomsOnFloor = allRooms.filter(function(r) { return r.floor == floor && !r.owner; });
+      roomsOnFloor.forEach(function(r) {
+        select.innerHTML += '<option value="' + r._id + '">Room ' + r.roomNumber + '</option>';
+      });
+    }
+
+    function showTab(tab) {
+      document.getElementById('floorsTab').style.display = 'none';
+      document.getElementById('createOwnerTab').style.display = 'none';
+      document.getElementById('createGuardTab').style.display = 'none';
+      document.getElementById('visitorsTab').style.display = 'none';
+      
+      if (tab === 'floors') document.getElementById('floorsTab').style.display = 'block';
+      if (tab === 'createOwner') document.getElementById('createOwnerTab').style.display = 'block';
+      if (tab === 'createGuard') document.getElementById('createGuardTab').style.display = 'block';
+      if (tab === 'visitors') {
+        document.getElementById('visitorsTab').style.display = 'block';
+        loadVisitors();
+      }
     }
 
     function createGuard() {
@@ -115,18 +226,15 @@
       
       fetch('/api/admin/guards', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + adminToken
-        },
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + adminToken },
         body: JSON.stringify({ name: name, email: email, password: password })
       })
       .then(function(res) { return res.json(); })
       .then(function(data) {
-        document.getElementById('guardMsg').innerText = data.message || 'Guard created!';
-      })
-      .catch(function(err) {
-        document.getElementById('guardMsg').innerText = 'Error creating guard';
+        var el = document.getElementById('guardMsg');
+        el.innerText = data.message || 'Guard created!';
+        el.className = 'msg success';
+        el.style.display = 'block';
       });
     }
 
@@ -134,23 +242,20 @@
       var name = document.getElementById('ownerName').value;
       var email = document.getElementById('ownerEmail').value;
       var password = document.getElementById('ownerPassword').value;
-      var room = document.getElementById('ownerRoom').value;
+      var roomId = document.getElementById('ownerRoom').value;
       
       fetch('/api/admin/owners/create', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + adminToken
-        },
-        body: JSON.stringify({ name: name, email: email, password: password, roomId: room })
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + adminToken },
+        body: JSON.stringify({ name: name, email: email, password: password, roomId: roomId })
       })
       .then(function(res) { return res.json(); })
       .then(function(data) {
-        document.getElementById('ownerMsg').innerText = data.message || 'Owner created!';
-        loadRooms();
-      })
-      .catch(function(err) {
-        document.getElementById('ownerMsg').innerText = 'Error creating owner';
+        var el = document.getElementById('ownerMsg');
+        el.innerText = data.message || 'Owner created!';
+        el.className = 'msg success';
+        el.style.display = 'block';
+        loadAllRooms();
       });
     }
 
@@ -160,22 +265,12 @@
       })
       .then(function(res) { return res.json(); })
       .then(function(visitors) {
-        var html = '<table><tr><th>Name</th><th>Phone</th><th>Purpose</th><th>Room</th><th>Time</th><th>Status</th></tr>';
+        var html = '<table style="width:100%;font-size:13px;"><tr><th>Name</th><th>Room</th><th>Status</th></tr>';
         visitors.forEach(function(v) {
-          html += '<tr>' +
-            '<td>' + v.name + '</td>' +
-            '<td>' + v.phone + '</td>' +
-            '<td>' + v.purpose + '</td>' +
-            '<td>' + (v.room ? v.room.roomNumber : '') + '</td>' +
-            '<td>' + new Date(v.entryTime).toLocaleString() + '</td>' +
-            '<td>' + v.status + '</td>' +
-            '</tr>';
+          html += '<tr><td>' + v.name + '</td><td>' + (v.room ? v.room.roomNumber : '') + '</td><td>' + v.status + '</td></tr>';
         });
         html += '</table>';
         document.getElementById('visitorTable').innerHTML = html;
-      })
-      .catch(function(err) {
-        console.log('Error loading visitors:', err);
       });
     }
 
