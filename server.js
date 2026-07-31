@@ -48,11 +48,11 @@ mongoose.connect(process.env.MONGODB_URI)
           password: 'Admin@123',
           role: 'super_admin',
           status: 'approved'
-        }).then(() => console.log('Default super admin created: admin@building.com / Admin@123'));
+        }).then(() => console.log('Default super admin created'));
       }
     });
     
-    // Delete existing rooms and create fresh (fixes duplicates)
+    // Delete existing rooms and create fresh
     const Room = require('./models/Room');
     Room.deleteMany({}).then(() => {
       console.log('Old rooms cleared');
@@ -65,9 +65,49 @@ mongoose.connect(process.env.MONGODB_URI)
           });
         }
       }
-      Room.insertMany(rooms).then(() => console.log('299 rooms created (23 floors x 13 rooms)'));
+      Room.insertMany(rooms).then(() => {
+        console.log('299 rooms created (23 floors x 13 rooms)');
+        
+        // Create a test owner and assign to room 101
+        const User = require('./models/User');
+        const Room = require('./models/Room');
+        
+        User.findOne({ email: 'test@test.com' }).then(async (existingOwner) => {
+          let owner = existingOwner;
+          if (!owner) {
+            owner = await User.create({
+              name: 'Test Owner',
+              email: 'test@test.com',
+              password: 'test123',
+              role: 'owner',
+              status: 'approved'
+            });
+            console.log('Test owner created:', owner._id);
+          }
+          
+          // Assign owner to room 101
+          const room101 = await Room.findOne({ roomNumber: '101' });
+          if (room101) {
+            room101.owner = owner._id;
+            room101.isAvailable = false;
+            await room101.save();
+            console.log('Room 101 assigned to Test Owner');
+            
+            // Update owner's room field
+            owner.room = room101._id;
+            await owner.save();
+            console.log('Owner room field updated to room 101');
+            
+            // Verify
+            const verify = await Room.findOne({ roomNumber: '101' }).populate('owner');
+            console.log('Verification - Room 101 owner:', verify.owner ? verify.owner.name : 'NO OWNER');
+          }
+        });
+      });
     });
     
-    server.listen(process.env.PORT || 5000, () => console.log(`Server running on port ${process.env.PORT || 5000}`));
+    server.listen(process.env.PORT || 5000, () => {
+      console.log(`Server running on port ${process.env.PORT || 5000}`);
+    });
   })
   .catch(err => console.error('MongoDB connection error:', err));
