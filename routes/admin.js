@@ -22,15 +22,26 @@ router.post('/guards', async (req, res) => {
 router.post('/owners/create', async (req, res) => {
   const { name, email, password, roomId } = req.body;
   try {
+    // Create the owner
     const owner = await User.create({
       name, email, password,
       role: 'owner',
       status: 'approved',
       room: roomId
     });
-    await Room.findByIdAndUpdate(roomId, { owner: owner._id, isAvailable: false });
-    res.json({ message: 'Owner created successfully', owner });
+    
+    // Assign owner to room
+    const updatedRoom = await Room.findByIdAndUpdate(
+      roomId, 
+      { owner: owner._id, isAvailable: false },
+      { new: true }
+    );
+    
+    console.log('Owner created:', owner.name, 'assigned to room:', updatedRoom.roomNumber);
+    
+    res.json({ message: 'Owner created and assigned to room successfully', owner, room: updatedRoom });
   } catch (err) {
+    console.error('Error creating owner:', err);
     res.status(400).json({ error: err.message });
   }
 });
@@ -68,7 +79,7 @@ router.get('/visitors', async (req, res) => {
 
 // Get all rooms
 router.get('/rooms', async (req, res) => {
-  const rooms = await Room.find().populate('owner', 'name');
+  const rooms = await Room.find().populate('owner', 'name email phone');
   res.json(rooms);
 });
 
