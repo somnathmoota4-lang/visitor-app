@@ -6,17 +6,33 @@ const upload = require('../middleware/upload');
 
 router.use(auth('guard'));
 
+// Get all rooms with owner info
 router.get('/rooms', async (req, res) => {
-  const rooms = await Room.find().populate('owner', 'name phone');
-  res.json(rooms);
+  try {
+    const rooms = await Room.find().populate('owner', 'name phone email');
+    console.log('Rooms loaded for guard:', rooms.length);
+    res.json(rooms);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
+// Check-in visitor
 router.post('/checkin', upload.single('photo'), async (req, res) => {
   const { name, phone, purpose, roomId } = req.body;
-  const photo = req.file ? `/uploads/${req.file.filename}` : null;
+  const photo = req.file ? '/uploads/' + req.file.filename : null;
+  
   try {
     const room = await Room.findById(roomId).populate('owner');
-    if (!room || !room.owner) return res.status(400).json({ error: 'Room has no owner assigned' });
+    
+    if (!room) {
+      return res.status(400).json({ error: 'Room not found' });
+    }
+    
+    if (!room.owner) {
+      return res.status(400).json({ error: 'Room has no owner assigned' });
+    }
+    
     const visitor = await Visitor.create({
       name, phone, purpose, photo,
       room: roomId,
@@ -24,22 +40,42 @@ router.post('/checkin', upload.single('photo'), async (req, res) => {
       guard: req.user.id,
       status: 'pending'
     });
-    // Send push notification (skipped if FCM not set)
+    
+    console.log('Visitor checked in:', visitor.name, 'for room:', room.roomNumber);
+    
+    // Emit socket event for real-time notification
     const io = req.app.get('io');
-    // We'll emit a test event for now; real push handled later.
-    io.to(visitor._id.toString()).emit('pending_visitor', { visitorId: visitor._id, name });
-    res.json({ message: 'Visitor registered, waiting for owner approval', visitId: visitor._id });
+    io.to(visitor._id.toString()).emit('pending_visitor', { 
+      visitorId: visitor._id, 
+      name: visitor.name,
+      room: room.roomNumber 
+    });
+    
+    res.json({ 
+      message: 'Visitor registered, waiting for owner approval', 
+      visitId: visitor._id,
+      visitor: visitor 
+    });
+    
   } catch (err) {
+    console.error('Check-in error:', err);
     res.status(500).json({ error: err.message });
   }
 });
 
-// Get today's visitors for the guard
+// Get today's visitors for this guard
 router.get('/today', async (req, res) => {
-  const start = new Date();
-  start.setHours(0,0,0,0);
-  const visitors = await Visitor.find({ guard: req.user.id, entryTime: { $gte: start } }).populate('room owner');
-  res.json(visitors);
+  try {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    const visitors = await Visitor.find({ 
+      guard: req.user.id, 
+      entryTime: { $gte: start } 
+    }).populate('room owner');
+    res.json(visitors);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 module.exports = router;
