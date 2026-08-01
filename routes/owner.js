@@ -57,5 +57,16 @@ router.post('/fcm-token', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
+// Get history for this owner
+router.get('/history', async (req, res) => {
+  try {
+    const visitors = await Visitor.find({ 
+      owner: req.user.id,
+      status: { $in: ['approved', 'rejected'] }
+    }).populate('room').sort({ entryTime: -1 }).limit(50);
+    res.json(visitors);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 module.exports = router;
