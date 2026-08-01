@@ -4,42 +4,78 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Visitor Check-in</title>
   <style>
-    body { font-family: Arial; padding: 15px; max-width: 500px; margin: auto; background: #f5f5f5; }
-    h2 { color: #1a237e; }
-    .card { background: white; padding: 20px; border-radius: 10px; margin: 10px 0; box-shadow: 0 1px 5px rgba(0,0,0,0.1); }
-    input, select, button { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ccc; border-radius: 5px; font-size: 16px; box-sizing: border-box; }
-    button { background: #1a237e; color: white; border: none; font-weight: bold; }
-    .msg { padding: 10px; border-radius: 5px; margin: 10px 0; }
-    .success { background: #e8f5e9; color: #2e7d32; }
-    .error { background: #ffebee; color: #c62828; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; min-height: 100vh; }
+    .header { background: linear-gradient(135deg, #1a237e, #283593); color: white; padding: 20px; text-align: center; }
+    .container { max-width: 500px; margin: 15px auto; padding: 10px; }
+    .card { background: white; padding: 20px; margin: 10px 0; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .card h3 { color: #1a237e; margin-bottom: 15px; }
+    input, select, button { width: 100%; padding: 12px; margin: 8px 0; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px; }
+    input:focus, select:focus { border-color: #1a237e; outline: none; }
+    button { background: #1a237e; color: white; border: none; font-weight: bold; cursor: pointer; }
+    .photo-btn { background: #e3f2fd; color: #1a237e; border: 2px dashed #1a237e; text-align: center; padding: 20px; border-radius: 12px; cursor: pointer; }
+    .photo-preview { width: 100px; height: 100px; border-radius: 50%; background: #e0e0e0; margin: 10px auto; overflow: hidden; }
+    .photo-preview img { width: 100%; height: 100%; object-fit: cover; }
+    .waiting-box { text-align: center; padding: 30px; }
+    .waiting-box .spinner { font-size: 48px; animation: spin 1s linear infinite; }
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+    .result { font-size: 20px; font-weight: bold; margin: 15px 0; }
+    .result.approved { color: #2e7d32; }
+    .result.rejected { color: #c62828; }
   </style>
 </head>
 <body>
-  <div class="card">
+  <div class="header">
     <h2>📋 Visitor Check-in</h2>
-    <form id="checkinForm">
-      <input type="text" id="name" placeholder="Visitor Name" required>
-      <input type="tel" id="phone" placeholder="Phone Number" required>
-      <select id="purpose" required>
-        <option value="">Select Purpose</option>
-        <option>Meeting</option>
-        <option>Delivery</option>
-        <option>Maintenance</option>
-        <option>Personal Visit</option>
-        <option>Other</option>
-      </select>
-      <select id="roomId" required>
-        <option value="">Select Room</option>
-      </select>
-      <label style="font-size:14px;">Visitor Photo:</label>
-      <input type="file" id="photo" accept="image/*" capture="environment">
-      <button type="submit">✅ Check In</button>
-    </form>
   </div>
 
-  <div id="waiting" class="card" style="display:none;">
-    <h3>⏳ Waiting for owner approval...</h3>
-    <p id="statusMessage"></p>
+  <div class="container">
+    <div id="checkinForm">
+      <div class="card">
+        <h3>Visitor Details</h3>
+        <input type="text" id="name" placeholder="👤 Visitor Full Name" required>
+        <input type="tel" id="phone" placeholder="📱 Phone Number" required>
+        <select id="purpose" required>
+          <option value="">🎯 Select Purpose</option>
+          <option>Meeting</option>
+          <option>Delivery</option>
+          <option>Maintenance</option>
+          <option>Personal Visit</option>
+          <option>Interview</option>
+          <option>Other</option>
+        </select>
+      </div>
+
+      <div class="card">
+        <h3>Select Destination</h3>
+        <select id="ownerFloor" onchange="loadRoomsByFloor()" required>
+          <option value="">🏢 Select Floor</option>
+        </select>
+        <select id="roomId" required>
+          <option value="">🚪 Select Room</option>
+        </select>
+      </div>
+
+      <div class="card">
+        <h3>Photo (Optional)</h3>
+        <div class="photo-preview" id="photoPreview">
+          <span style="font-size:40px;color:#999;">📷</span>
+        </div>
+        <input type="file" id="photo" accept="image/*" capture="environment" onchange="previewPhoto()" style="display:none;">
+        <button type="button" class="photo-btn" onclick="document.getElementById('photo').click()">📸 Take Photo</button>
+      </div>
+
+      <button onclick="checkin()">✅ Check In Visitor</button>
+    </div>
+
+    <div id="waitingBox" style="display:none;">
+      <div class="card waiting-box">
+        <div class="spinner">⏳</div>
+        <h3>Waiting for Owner Approval</h3>
+        <p id="statusMessage" style="color:#666;">Request sent to owner...</p>
+        <div id="approvalResult"></div>
+      </div>
+    </div>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
@@ -49,38 +85,80 @@
 
     var socket = io();
     var currentVisitId = null;
+    var allRooms = [];
 
-    // Load rooms
+    // Load all rooms and setup floors
     fetch('/api/guard/rooms', {
       headers: { 'Authorization': 'Bearer ' + token }
     })
     .then(function(res) { return res.json(); })
     .then(function(rooms) {
-      var select = document.getElementById('roomId');
-      rooms.forEach(function(room) {
-        if (room.owner) {
-          var opt = document.createElement('option');
-          opt.value = room._id;
-          opt.textContent = 'Floor ' + room.floor + ' - Room ' + room.roomNumber + ' (' + room.owner.name + ')';
-          select.appendChild(opt);
-        }
-      });
-      if (select.options.length === 1) {
-        select.innerHTML = '<option value="">No rooms with owners yet</option>';
-      }
-    })
-    .catch(function(err) {
-      console.log('Error loading rooms:', err);
+      allRooms = rooms;
+      setupFloorSelect();
     });
 
-    document.getElementById('checkinForm').addEventListener('submit', function(e) {
-      e.preventDefault();
+    function setupFloorSelect() {
+      var floors = [];
+      allRooms.forEach(function(r) {
+        if (floors.indexOf(r.floor) === -1) floors.push(r.floor);
+      });
+      floors.sort(function(a,b) { return a - b; });
+      
+      var select = document.getElementById('ownerFloor');
+      select.innerHTML = '<option value="">🏢 Select Floor</option>';
+      floors.forEach(function(f) {
+        select.innerHTML += '<option value="' + f + '">Floor ' + f + '</option>';
+      });
+    }
+
+    function loadRoomsByFloor() {
+      var floor = document.getElementById('ownerFloor').value;
+      var select = document.getElementById('roomId');
+      select.innerHTML = '<option value="">🚪 Select Room</option>';
+      
+      if (!floor) return;
+      
+      var roomsOnFloor = allRooms.filter(function(r) { 
+        return r.floor == floor && r.owner; 
+      });
+      
+      if (roomsOnFloor.length === 0) {
+        select.innerHTML = '<option value="">No rooms with owners on this floor</option>';
+        return;
+      }
+      
+      roomsOnFloor.forEach(function(r) {
+        select.innerHTML += '<option value="' + r._id + '">Room ' + r.roomNumber + ' - ' + (r.owner ? r.owner.name : '') + '</option>';
+      });
+    }
+
+    function previewPhoto() {
+      var file = document.getElementById('photo').files[0];
+      if (file) {
+        var reader = new FileReader();
+        reader.onload = function(e) {
+          document.getElementById('photoPreview').innerHTML = '<img src="' + e.target.result + '">';
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    function checkin() {
+      var name = document.getElementById('name').value;
+      var phone = document.getElementById('phone').value;
+      var purpose = document.getElementById('purpose').value;
+      var roomId = document.getElementById('roomId').value;
+      
+      if (!name || !phone || !purpose || !roomId) {
+        alert('Please fill all required fields');
+        return;
+      }
       
       var formData = new FormData();
-      formData.append('name', document.getElementById('name').value);
-      formData.append('phone', document.getElementById('phone').value);
-      formData.append('purpose', document.getElementById('purpose').value);
-      formData.append('roomId', document.getElementById('roomId').value);
+      formData.append('name', name);
+      formData.append('phone', phone);
+      formData.append('purpose', purpose);
+      formData.append('roomId', roomId);
       
       var photoFile = document.getElementById('photo').files[0];
       if (photoFile) {
@@ -97,29 +175,33 @@
         if (data.visitId) {
           currentVisitId = data.visitId;
           document.getElementById('checkinForm').style.display = 'none';
-          document.getElementById('waiting').style.display = 'block';
-          document.getElementById('statusMessage').innerText = 'Request sent to owner...';
+          document.getElementById('waitingBox').style.display = 'block';
           socket.emit('joinRoom', currentVisitId);
         } else {
           alert(data.error || 'Error checking in');
         }
-      })
-      .catch(function(err) {
-        alert('Connection error');
       });
-    });
+    }
 
     socket.on('owner_response', function(data) {
       if (data.visitId === currentVisitId) {
+        var resultDiv = document.getElementById('approvalResult');
         if (data.status === 'approved') {
-          document.getElementById('statusMessage').innerHTML = '<span style="color:green;font-size:24px;">✅ APPROVED - Allow Entry</span>';
+          document.getElementById('statusMessage').innerText = '';
+          resultDiv.innerHTML = '<div class="result approved">✅ APPROVED<br><small>Allow Entry</small></div>';
         } else {
-          document.getElementById('statusMessage').innerHTML = '<span style="color:red;font-size:24px;">❌ REJECTED - Deny Entry</span>';
+          document.getElementById('statusMessage').innerText = '';
+          resultDiv.innerHTML = '<div class="result rejected">❌ REJECTED<br><small>Deny Entry</small></div>';
         }
         setTimeout(function() {
           document.getElementById('checkinForm').style.display = 'block';
-          document.getElementById('waiting').style.display = 'none';
-          document.getElementById('checkinForm').reset();
+          document.getElementById('waitingBox').style.display = 'none';
+          document.getElementById('name').value = '';
+          document.getElementById('phone').value = '';
+          document.getElementById('purpose').value = '';
+          document.getElementById('photo').value = '';
+          document.getElementById('photoPreview').innerHTML = '<span style="font-size:40px;color:#999;">📷</span>';
+          document.getElementById('approvalResult').innerHTML = '';
         }, 5000);
       }
     });
