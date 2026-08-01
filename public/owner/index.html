@@ -4,58 +4,190 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Owner Dashboard</title>
   <style>
-    body { font-family: Arial; padding: 15px; max-width: 500px; margin: auto; background: #f5f5f5; }
-    h2 { color: #1a73e8; }
-    .visitor-card { background: white; padding: 15px; margin: 10px 0; border-radius: 10px; box-shadow: 0 1px 5px rgba(0,0,0,0.1); }
-    .visitor-card img { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; }
-    button { padding: 10px 20px; margin: 5px; border: none; border-radius: 5px; font-size: 14px; cursor: pointer; }
-    .approve { background: #4CAF50; color: white; }
-    .reject { background: #f44336; color: white; }
-    #logout { background: #666; color: white; width: 100%; margin-top: 20px; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; min-height: 100vh; }
+    .header { background: linear-gradient(135deg, #1a237e, #283593); color: white; padding: 20px; text-align: center; }
+    .container { max-width: 500px; margin: 15px auto; padding: 10px; }
+    .tabs { display: flex; background: white; border-radius: 10px; margin-bottom: 15px; overflow: hidden; }
+    .tab { flex: 1; padding: 12px; text-align: center; cursor: pointer; font-weight: bold; color: #666; border-bottom: 3px solid transparent; }
+    .tab.active { color: #1a237e; border-bottom-color: #1a237e; }
+    .card { background: white; padding: 15px; margin: 10px 0; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .visitor-card { display: flex; gap: 12px; align-items: center; padding: 12px; border-bottom: 1px solid #eee; }
+    .visitor-photo { width: 60px; height: 60px; border-radius: 50%; background: #e0e0e0; display: flex; align-items: center; justify-content: center; font-size: 24px; overflow: hidden; flex-shrink: 0; }
+    .visitor-photo img { width: 100%; height: 100%; object-fit: cover; }
+    .visitor-info { flex: 1; }
+    .visitor-info h4 { font-size: 16px; color: #333; }
+    .visitor-info p { font-size: 13px; color: #666; margin: 3px 0; }
+    .actions { display: flex; gap: 8px; }
+    .btn { padding: 8px 16px; border: none; border-radius: 20px; font-size: 14px; font-weight: bold; cursor: pointer; }
+    .btn-approve { background: #4CAF50; color: white; }
+    .btn-reject { background: #f44336; color: white; }
+    .badge { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; }
+    .badge-approved { background: #e8f5e9; color: #2e7d32; }
+    .badge-rejected { background: #ffebee; color: #c62828; }
+    .badge-pending { background: #fff3e0; color: #e65100; }
+    .empty-state { text-align: center; padding: 30px; color: #999; }
+    .empty-state .icon { font-size: 48px; margin-bottom: 10px; }
+    .logout-btn { width: 100%; padding: 12px; background: #666; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; margin-top: 15px; }
+    .welcome { font-size: 14px; opacity: 0.9; margin-top: 5px; }
   </style>
 </head>
 <body>
-  <h2>👋 Pending Visitors</h2>
-  <div id="visitorList"><p>Loading...</p></div>
-  <button id="logout" onclick="logout()">Logout</button>
+  <div class="header">
+    <h2>🏠 Welcome</h2>
+    <p class="welcome" id="ownerName">Loading...</p>
+  </div>
+
+  <div class="container">
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('pending')">⏳ Pending</div>
+      <div class="tab" onclick="switchTab('history')">📋 History</div>
+    </div>
+
+    <!-- Pending Visitors -->
+    <div id="pendingTab">
+      <div id="pendingList"></div>
+    </div>
+
+    <!-- History -->
+    <div id="historyTab" style="display:none;">
+      <div id="historyList"></div>
+    </div>
+
+    <button class="logout-btn" onclick="logout()">🚪 Logout</button>
+  </div>
 
   <script>
     const token = localStorage.getItem('ownerToken');
     if (!token) { window.location = 'login.html'; }
 
-    async function loadPending() {
-      const res = await fetch('/api/owner/pending', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const visitors = await res.json();
-      if (visitors.length === 0) {
-        document.getElementById('visitorList').innerHTML = '<p>No pending visitors</p>';
-        return;
-      }
-      let html = '';
-      visitors.forEach(v => {
-        html += `
-          <div class="visitor-card">
-            ${v.photo ? `<img src="${v.photo}" alt="photo">` : '<p>No photo</p>'}
-            <p><b>Name:</b> ${v.name}</p>
-            <p><b>Phone:</b> ${v.phone}</p>
-            <p><b>Purpose:</b> ${v.purpose}</p>
-            <p><b>Time:</b> ${new Date(v.entryTime).toLocaleString()}</p>
-            <button class="approve" onclick="respond('${v._id}', 'approve')">✅ Approve</button>
-            <button class="reject" onclick="respond('${v._id}', 'reject')">❌ Reject</button>
-          </div>
-        `;
-      });
-      document.getElementById('visitorList').innerHTML = html;
+    let currentTab = 'pending';
+
+    // Decode token to get owner name
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      document.getElementById('ownerName').innerText = 'Room ' + (payload.room || 'Owner');
+    } catch(e) {
+      document.getElementById('ownerName').innerText = 'Owner';
     }
 
-    async function respond(visitId, action) {
-      await fetch('/api/owner/respond', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ visitId, action })
+    function switchTab(tab) {
+      currentTab = tab;
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.getElementById('pendingTab').style.display = 'none';
+      document.getElementById('historyTab').style.display = 'none';
+      
+      if (tab === 'pending') {
+        document.querySelector('.tab:nth-child(1)').classList.add('active');
+        document.getElementById('pendingTab').style.display = 'block';
+        loadPending();
+      } else {
+        document.querySelector('.tab:nth-child(2)').classList.add('active');
+        document.getElementById('historyTab').style.display = 'block';
+        loadHistory();
+      }
+    }
+
+    function loadPending() {
+      fetch('/api/owner/pending', {
+        headers: { 'Authorization': 'Bearer ' + token }
+      })
+      .then(res => res.json())
+      .then(visitors => {
+        if (visitors.length === 0) {
+          document.getElementById('pendingList').innerHTML = `
+            <div class="card empty-state">
+              <div class="icon">✅</div>
+              <p>No pending visitors</p>
+              <p style="font-size:12px;">New visitors will appear here</p>
+            </div>`;
+          return;
+        }
+        let html = '';
+        visitors.forEach(v => {
+          html += `
+            <div class="card visitor-card">
+              <div class="visitor-photo">
+                ${v.photo ? `<img src="${v.photo}" alt="photo">` : '👤'}
+              </div>
+              <div class="visitor-info">
+                <h4>${v.name}</h4>
+                <p>📱 ${v.phone}</p>
+                <p>🎯 ${v.purpose}</p>
+                <p>🕐 ${new Date(v.entryTime).toLocaleString('en-IN')}</p>
+              </div>
+              <div class="actions">
+                <button class="btn btn-approve" onclick="respond('${v._id}', 'approve')">✓</button>
+                <button class="btn btn-reject" onclick="respond('${v._id}', 'reject')">✕</button>
+              </div>
+            </div>`;
+        });
+        document.getElementById('pendingList').innerHTML = html;
       });
-      loadPending();
+    }
+
+    function loadHistory() {
+      fetch('/api/owner/pending', {
+        headers: { 'Authorization': 'Bearer ' + token }
+      })
+      .then(res => res.json())
+      .then(pending => {
+        // Also get all visitors for this owner from admin endpoint
+        fetch('/api/owner/pending', {
+          headers: { 'Authorization': 'Bearer ' + token }
+        })
+        .then(res => res.json())
+        .then(allVisitors => {
+          // For now show pending + we need a history endpoint
+          // Let's create a simple approach
+          fetch('/api/owner/history', {
+            headers: { 'Authorization': 'Bearer ' + token }
+          })
+          .then(res => res.json())
+          .then(history => {
+            if (history.length === 0) {
+              document.getElementById('historyList').innerHTML = `
+                <div class="card empty-state">
+                  <div class="icon">📭</div>
+                  <p>No visitor history yet</p>
+                </div>`;
+              return;
+            }
+            let html = '';
+            history.forEach(v => {
+              const badgeClass = v.status === 'approved' ? 'badge-approved' : v.status === 'rejected' ? 'badge-rejected' : 'badge-pending';
+              html += `
+                <div class="card visitor-card">
+                  <div class="visitor-photo">
+                    ${v.photo ? `<img src="${v.photo}" alt="photo">` : '👤'}
+                  </div>
+                  <div class="visitor-info">
+                    <h4>${v.name} <span class="badge ${badgeClass}">${v.status}</span></h4>
+                    <p>📱 ${v.phone}</p>
+                    <p>🎯 ${v.purpose}</p>
+                    <p>🕐 ${new Date(v.entryTime).toLocaleString('en-IN')}</p>
+                  </div>
+                </div>`;
+            });
+            document.getElementById('historyList').innerHTML = html;
+          });
+        });
+      });
+    }
+
+    function respond(visitId, action) {
+      fetch('/api/owner/respond', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token
+        },
+        body: JSON.stringify({ visitId: visitId, action: action })
+      })
+      .then(res => res.json())
+      .then(data => {
+        loadPending();
+      });
     }
 
     function logout() {
@@ -63,8 +195,11 @@
       window.location = 'login.html';
     }
 
+    // Load pending on start
     loadPending();
-    setInterval(loadPending, 10000);
+    setInterval(() => {
+      if (currentTab === 'pending') loadPending();
+    }, 10000);
   </script>
 </body>
 </html>
