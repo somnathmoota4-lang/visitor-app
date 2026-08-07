@@ -6,31 +6,53 @@
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; min-height: 100vh; }
-    .header { background: linear-gradient(135deg, #1a237e, #283593); color: white; padding: 20px; text-align: center; }
-    .container { max-width: 500px; margin: 15px auto; padding: 10px; }
-    .card { background: white; padding: 20px; margin: 10px 0; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-    .card h3 { color: #1a237e; margin-bottom: 15px; }
-    input, select, button { width: 100%; padding: 12px; margin: 8px 0; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px; }
+    .header { background: linear-gradient(135deg, #1a237e, #283593); color: white; padding: 15px; text-align: center; }
+    .header h2 { font-size: 20px; }
+    .tabs { display: flex; background: white; }
+    .tab { flex: 1; padding: 12px; text-align: center; cursor: pointer; font-weight: bold; color: #666; border-bottom: 3px solid transparent; font-size: 14px; }
+    .tab.active { color: #1a237e; border-bottom-color: #1a237e; }
+    .container { max-width: 500px; margin: 10px auto; padding: 10px; }
+    .card { background: white; padding: 15px; margin: 10px 0; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .card h3 { color: #1a237e; margin-bottom: 12px; font-size: 16px; }
+    input, select, button { width: 100%; padding: 12px; margin: 6px 0; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px; }
     input:focus, select:focus { border-color: #1a237e; outline: none; }
-    button { background: #1a237e; color: white; border: none; font-weight: bold; cursor: pointer; }
-    .photo-btn { background: #e3f2fd; color: #1a237e; border: 2px dashed #1a237e; text-align: center; padding: 20px; border-radius: 12px; cursor: pointer; }
-    .photo-preview { width: 100px; height: 100px; border-radius: 50%; background: #e0e0e0; margin: 10px auto; overflow: hidden; }
+    .btn { background: #1a237e; color: white; border: none; font-weight: bold; cursor: pointer; }
+    .btn-green { background: #2e7d32; }
+    .btn-red { background: #c62828; }
+    .btn-orange { background: #e65100; }
+    
+    /* Visitor Queue */
+    .visitor-queue-item { display: flex; align-items: center; padding: 12px; border-bottom: 1px solid #eee; gap: 10px; }
+    .visitor-status { font-size: 12px; padding: 4px 8px; border-radius: 12px; font-weight: bold; }
+    .status-waiting { background: #fff3e0; color: #e65100; }
+    .status-approved { background: #e8f5e9; color: #2e7d32; }
+    .status-rejected { background: #ffebee; color: #c62828; }
+    .queue-info { flex: 1; }
+    .queue-info strong { font-size: 14px; }
+    .queue-info small { font-size: 11px; color: #666; display: block; }
+    
+    .photo-btn { background: #e3f2fd; color: #1a237e; border: 2px dashed #1a237e; text-align: center; padding: 15px; border-radius: 10px; cursor: pointer; font-size: 14px; }
+    .photo-preview { width: 80px; height: 80px; border-radius: 50%; background: #e0e0e0; margin: 10px auto; overflow: hidden; }
     .photo-preview img { width: 100%; height: 100%; object-fit: cover; }
-    .waiting-box { text-align: center; padding: 30px; }
-    .waiting-box .spinner { font-size: 48px; animation: spin 1s linear infinite; }
-    @keyframes spin { 100% { transform: rotate(360deg); } }
-    .result { font-size: 20px; font-weight: bold; margin: 15px 0; }
-    .result.approved { color: #2e7d32; }
-    .result.rejected { color: #c62828; }
+    
+    .count-badge { background: #ff6f00; color: white; padding: 2px 8px; border-radius: 10px; font-size: 12px; }
+    .empty-state { text-align: center; padding: 30px; color: #999; }
+    .empty-state .icon { font-size: 48px; }
   </style>
 </head>
 <body>
   <div class="header">
-    <h2>📋 Visitor Check-in</h2>
+    <h2>📋 Visitor Management</h2>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('checkin')">✍️ Check-in</div>
+    <div class="tab" onclick="switchTab('queue')">📊 Queue <span class="count-badge" id="queueCount">0</span></div>
   </div>
 
   <div class="container">
-    <div id="checkinForm">
+    <!-- CHECK-IN TAB -->
+    <div id="checkinTab">
       <div class="card">
         <h3>Visitor Details</h3>
         <input type="text" id="name" placeholder="👤 Visitor Full Name" required>
@@ -42,38 +64,52 @@
           <option>Maintenance</option>
           <option>Personal Visit</option>
           <option>Interview</option>
+          <option>Courier</option>
+          <option>Food Delivery</option>
           <option>Other</option>
         </select>
       </div>
 
       <div class="card">
-        <h3>Select Destination</h3>
+        <h3>Destination</h3>
         <select id="ownerFloor" onchange="loadRoomsByFloor()" required>
           <option value="">🏢 Select Floor</option>
         </select>
         <select id="roomId" required>
-          <option value="">🚪 Select Room</option>
+          <option value="">🚪 First select floor</option>
         </select>
       </div>
 
       <div class="card">
         <h3>Photo (Optional)</h3>
         <div class="photo-preview" id="photoPreview">
-          <span style="font-size:40px;color:#999;">📷</span>
+          <span style="font-size:30px;color:#999;">📷</span>
         </div>
         <input type="file" id="photo" accept="image/*" capture="environment" onchange="previewPhoto()" style="display:none;">
         <button type="button" class="photo-btn" onclick="document.getElementById('photo').click()">📸 Take Photo</button>
       </div>
 
-      <button onclick="checkin()">✅ Check In Visitor</button>
+      <button class="btn" onclick="checkinVisitor()" style="font-size:18px; padding:15px;">
+        ✅ Check In Visitor
+      </button>
+      <p style="text-align:center; color:#666; margin-top:8px; font-size:13px;">
+        You can check in multiple visitors without waiting
+      </p>
     </div>
 
-    <div id="waitingBox" style="display:none;">
-      <div class="card waiting-box">
-        <div class="spinner">⏳</div>
-        <h3>Waiting for Owner Approval</h3>
-        <p id="statusMessage" style="color:#666;">Request sent to owner...</p>
-        <div id="approvalResult"></div>
+    <!-- QUEUE TAB -->
+    <div id="queueTab" style="display:none;">
+      <div class="card">
+        <h3>📊 Current Queue</h3>
+        <p style="font-size:12px; color:#666; margin-bottom:10px;">
+          All visitors waiting for approval or recently processed
+        </p>
+        <div id="queueList">
+          <div class="empty-state">
+            <div class="icon">📭</div>
+            <p>No visitors in queue</p>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -84,10 +120,10 @@
     if (!token) { window.location = 'login.html'; }
 
     var socket = io();
-    var currentVisitId = null;
     var allRooms = [];
+    var visitorQueue = []; // Store all pending visitors
 
-    // Load all rooms and setup floors
+    // Load rooms
     fetch('/api/guard/rooms', {
       headers: { 'Authorization': 'Bearer ' + token }
     })
@@ -96,6 +132,21 @@
       allRooms = rooms;
       setupFloorSelect();
     });
+
+    function switchTab(tab) {
+      document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+      document.getElementById('checkinTab').style.display = 'none';
+      document.getElementById('queueTab').style.display = 'none';
+      
+      if (tab === 'checkin') {
+        document.querySelector('.tab:nth-child(1)').classList.add('active');
+        document.getElementById('checkinTab').style.display = 'block';
+      } else {
+        document.querySelector('.tab:nth-child(2)').classList.add('active');
+        document.getElementById('queueTab').style.display = 'block';
+        updateQueueDisplay();
+      }
+    }
 
     function setupFloorSelect() {
       var floors = [];
@@ -143,7 +194,7 @@
       }
     }
 
-    function checkin() {
+    function checkinVisitor() {
       var name = document.getElementById('name').value;
       var phone = document.getElementById('phone').value;
       var purpose = document.getElementById('purpose').value;
@@ -165,6 +216,11 @@
         formData.append('photo', photoFile);
       }
 
+      // Disable button to prevent double click
+      var btn = document.querySelector('.btn');
+      btn.disabled = true;
+      btn.innerText = '⏳ Checking in...';
+
       fetch('/api/guard/checkin', {
         method: 'POST',
         headers: { 'Authorization': 'Bearer ' + token },
@@ -172,39 +228,110 @@
       })
       .then(function(res) { return res.json(); })
       .then(function(data) {
+        btn.disabled = false;
+        btn.innerText = '✅ Check In Visitor';
+        
         if (data.visitId) {
-          currentVisitId = data.visitId;
-          document.getElementById('checkinForm').style.display = 'none';
-          document.getElementById('waitingBox').style.display = 'block';
-          socket.emit('joinRoom', currentVisitId);
-        } else {
-          alert(data.error || 'Error checking in');
-        }
-      });
-    }
-
-    socket.on('owner_response', function(data) {
-      if (data.visitId === currentVisitId) {
-        var resultDiv = document.getElementById('approvalResult');
-        if (data.status === 'approved') {
-          document.getElementById('statusMessage').innerText = '';
-          resultDiv.innerHTML = '<div class="result approved">✅ APPROVED<br><small>Allow Entry</small></div>';
-        } else {
-          document.getElementById('statusMessage').innerText = '';
-          resultDiv.innerHTML = '<div class="result rejected">❌ REJECTED<br><small>Deny Entry</small></div>';
-        }
-        setTimeout(function() {
-          document.getElementById('checkinForm').style.display = 'block';
-          document.getElementById('waitingBox').style.display = 'none';
+          // Add to queue
+          visitorQueue.push({
+            visitId: data.visitId,
+            name: name,
+            phone: phone,
+            purpose: purpose,
+            room: document.getElementById('roomId').selectedOptions[0].textContent,
+            status: 'waiting',
+            time: new Date().toLocaleTimeString()
+          });
+          
+          // Listen for response
+          socket.emit('joinRoom', data.visitId);
+          
+          // Clear form for next visitor
           document.getElementById('name').value = '';
           document.getElementById('phone').value = '';
           document.getElementById('purpose').value = '';
           document.getElementById('photo').value = '';
-          document.getElementById('photoPreview').innerHTML = '<span style="font-size:40px;color:#999;">📷</span>';
-          document.getElementById('approvalResult').innerHTML = '';
-        }, 5000);
+          document.getElementById('photoPreview').innerHTML = '<span style="font-size:30px;color:#999;">📷</span>';
+          
+          // Show success message
+          alert('✅ Visitor ' + name + ' checked in! Waiting for owner approval.\n\nYou can now check in the next visitor.');
+          
+          // Update queue count
+          updateQueueCount();
+        } else {
+          alert(data.error || 'Error checking in');
+        }
+      })
+      .catch(function(err) {
+        btn.disabled = false;
+        btn.innerText = '✅ Check In Visitor';
+        alert('Connection error. Please try again.');
+      });
+    }
+
+    function updateQueueCount() {
+      var waiting = visitorQueue.filter(function(v) { return v.status === 'waiting'; });
+      document.getElementById('queueCount').innerText = waiting.length;
+    }
+
+    function updateQueueDisplay() {
+      if (visitorQueue.length === 0) {
+        document.getElementById('queueList').innerHTML = '<div class="empty-state"><div class="icon">📭</div><p>No visitors in queue</p></div>';
+        return;
+      }
+      
+      var html = '';
+      // Show newest first
+      var reversed = visitorQueue.slice().reverse();
+      reversed.forEach(function(v) {
+        var statusClass = v.status === 'waiting' ? 'status-waiting' : 
+                         v.status === 'approved' ? 'status-approved' : 'status-rejected';
+        var statusText = v.status === 'waiting' ? '⏳ Waiting' : 
+                        v.status === 'approved' ? '✅ Approved' : '❌ Rejected';
+        
+        html += '<div class="visitor-queue-item">' +
+          '<div class="queue-info">' +
+            '<strong>' + v.name + '</strong>' +
+            '<small>📱 ' + v.phone + ' | 🎯 ' + v.purpose + '</small>' +
+            '<small>🚪 ' + v.room + ' | 🕐 ' + v.time + '</small>' +
+          '</div>' +
+          '<span class="visitor-status ' + statusClass + '">' + statusText + '</span>' +
+          '</div>';
+      });
+      
+      document.getElementById('queueList').innerHTML = html;
+      updateQueueCount();
+    }
+
+    // Listen for all owner responses
+    socket.on('owner_response', function(data) {
+      // Find the visitor in queue and update status
+      visitorQueue.forEach(function(v) {
+        if (v.visitId === data.visitId) {
+          v.status = data.status;
+        }
+      });
+      
+      // Update queue display if on queue tab
+      updateQueueDisplay();
+      
+      // Show notification
+      var visitor = visitorQueue.find(function(v) { return v.visitId === data.visitId; });
+      if (visitor) {
+        if (data.status === 'approved') {
+          alert('✅ APPROVED!\n\n' + visitor.name + ' can enter.');
+        } else {
+          alert('❌ REJECTED!\n\n' + visitor.name + ' denied entry.');
+        }
       }
     });
+
+    // Auto-refresh queue every 30 seconds
+    setInterval(function() {
+      if (document.getElementById('queueTab').style.display !== 'none') {
+        updateQueueDisplay();
+      }
+    }, 30000);
   </script>
 </body>
 </html>
