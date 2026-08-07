@@ -165,28 +165,35 @@
     var allRooms = [];
 
     // ========== LOGIN ==========
-    function adminLogin() {
-      var email = document.getElementById('adminEmail').value;
-      var password = document.getElementById('adminPassword').value;
-      
-      fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email, password: password })
-      })
-      .then(function(res) { return res.json(); })
-      .then(function(data) {
-        if (data.token) {
-          adminToken = data.token;
-          document.getElementById('loginSection').style.display = 'none';
-          document.getElementById('adminPanel').style.display = 'block';
-          document.getElementById('statsGrid').style.display = 'grid';
-          loadAllData();
-        } else {
-          showMsg('loginError', data.error || 'Login failed');
-        }
-      });
+function adminLogin() {
+  var email = document.getElementById('adminEmail').value;
+  var password = document.getElementById('adminPassword').value;
+  
+  fetch('/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: email, password: password })
+  })
+  .then(function(res) { return res.json(); })
+  .then(function(data) {
+    if (data.token && data.user.role === 'super_admin') {
+      adminToken = data.token;
+      document.getElementById('loginSection').style.display = 'none';
+      document.getElementById('adminPanel').style.display = 'block';
+      document.getElementById('statsGrid').style.display = 'grid';
+      loadAllData();
+    } else if (data.token && data.user.role !== 'super_admin') {
+      showMsg('loginError', '❌ Access Denied! Only Developer can login here.');
+      // Clear the token if not super_admin
+      localStorage.removeItem('token');
+    } else {
+      showMsg('loginError', data.error || 'Invalid credentials');
     }
+  })
+  .catch(function() {
+    showMsg('loginError', 'Connection error');
+  });
+}
 
     // ========== LOAD ALL DATA ==========
     function loadAllData() {
