@@ -6,104 +6,157 @@
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; min-height: 100vh; }
-    .header { background: #1a237e; color: white; padding: 20px; text-align: center; }
-    .container { max-width: 500px; margin: 20px auto; padding: 15px; }
-    .card { background: white; padding: 20px; margin: 15px 0; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-    .card h3 { color: #1a237e; margin-bottom: 15px; font-size: 18px; }
-    input, select, button { width: 100%; padding: 12px; margin: 8px 0; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px; }
-    button { background: #1a237e; color: white; border: none; font-weight: bold; cursor: pointer; }
+    
+    .header { background: linear-gradient(135deg, #1a237e, #283593); color: white; padding: 15px; text-align: center; position: sticky; top: 0; z-index: 10; }
+    .header h2 { font-size: 18px; }
+    
+    .container { max-width: 500px; margin: 0 auto; padding: 10px; }
+    
+    .card { background: white; padding: 15px; margin: 10px 0; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .card h3 { color: #1a237e; margin-bottom: 12px; font-size: 16px; border-bottom: 2px solid #e8eaf6; padding-bottom: 8px; }
+    
+    input, select, button, textarea { width: 100%; padding: 10px; margin: 6px 0; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 15px; font-family: inherit; }
+    input:focus, select:focus, textarea:focus { border-color: #1a237e; outline: none; }
+    
+    button { background: #1a237e; color: white; border: none; font-weight: bold; cursor: pointer; padding: 12px; }
     button:hover { background: #283593; }
     .btn-green { background: #2e7d32; }
+    .btn-green:hover { background: #388e3c; }
     .btn-red { background: #c62828; }
-    .msg { padding: 10px; border-radius: 5px; margin: 10px 0; }
-    .success { background: #e8f5e9; color: #2e7d32; }
-    .error { background: #ffebee; color: #c62828; }
-    .floor-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 10px 0; }
-    .floor-btn { padding: 12px; background: #e3f2fd; border: 2px solid #1a237e; border-radius: 8px; text-align: center; cursor: pointer; font-weight: bold; }
-    .floor-btn.active { background: #1a237e; color: white; }
-    .room-list { max-height: 300px; overflow-y: auto; margin: 10px 0; }
-    .room-item { padding: 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+    .btn-red:hover { background: #d32f2f; }
+    .btn-outline { background: white; color: #1a237e; border: 2px solid #1a237e; }
+    .btn-small { padding: 6px 12px; font-size: 13px; width: auto; }
+    
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+    .grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 6px; }
+    
+    .floor-btn { padding: 12px 8px; background: #e8eaf6; border: 2px solid #c5cae9; border-radius: 8px; text-align: center; cursor: pointer; font-size: 13px; font-weight: bold; }
+    .floor-btn.active { background: #1a237e; color: white; border-color: #1a237e; }
+    
+    .room-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #eee; font-size: 14px; }
     .room-item:hover { background: #f5f5f5; }
-    .badge { padding: 4px 10px; border-radius: 12px; font-size: 12px; }
+    
+    .badge { padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: bold; }
     .badge-occupied { background: #ffebee; color: #c62828; }
     .badge-available { background: #e8f5e9; color: #2e7d32; }
+    
+    .msg { padding: 10px; border-radius: 8px; margin: 10px 0; font-size: 14px; display: none; }
+    .msg-success { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+    .msg-error { background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; }
+    
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th { background: #e8eaf6; padding: 8px; text-align: left; font-size: 11px; }
+    td { padding: 8px; border-bottom: 1px solid #eee; }
+    
+    .file-upload { border: 2px dashed #c5cae9; padding: 15px; text-align: center; border-radius: 8px; cursor: pointer; }
+    .file-upload:hover { border-color: #1a237e; background: #f5f5f5; }
+    
+    .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .stat-card { background: #e8eaf6; padding: 15px; border-radius: 10px; text-align: center; }
+    .stat-card .number { font-size: 28px; font-weight: bold; color: #1a237e; }
+    .stat-card .label { font-size: 11px; color: #666; }
   </style>
 </head>
 <body>
   <div class="header">
-    <h1>🏢 Building Admin</h1>
+    <h2>🏢 Building Admin Portal</h2>
   </div>
 
   <div class="container">
-    <!-- Login -->
+    <!-- LOGIN -->
     <div id="loginSection">
       <div class="card">
         <h3>🔐 Admin Login</h3>
         <input type="email" id="adminEmail" placeholder="Email address">
         <input type="password" id="adminPassword" placeholder="Password">
         <button onclick="adminLogin()">Login</button>
-        <p class="msg error" id="loginError" style="display:none;"></p>
+        <div class="msg msg-error" id="loginError"></div>
       </div>
     </div>
 
-    <!-- Dashboard -->
+    <!-- DASHBOARD -->
     <div id="adminPanel" style="display:none;">
-      <div class="card">
-        <h3>📊 Quick Actions</h3>
-        <button onclick="showTab('floors')">🏠 View Rooms</button>
-        <button onclick="showTab('createOwner')" style="margin-top:5px;">👤 Create Owner</button>
-        <button onclick="showTab('createGuard')" style="margin-top:5px;">🛡️ Create Guard</button>
-        <button onclick="showTab('visitors')" style="margin-top:5px;">📋 Visitor Log</button>
+      <!-- Stats -->
+      <div class="stats-grid" id="statsGrid" style="display:none;">
+        <div class="stat-card"><div class="number" id="totalRooms">299</div><div class="label">Total Rooms</div></div>
+        <div class="stat-card"><div class="number" id="occupiedRooms">0</div><div class="label">Occupied</div></div>
+        <div class="stat-card"><div class="number" id="totalOwners">0</div><div class="label">Owners</div></div>
+        <div class="stat-card"><div class="number" id="totalGuards">0</div><div class="label">Guards</div></div>
       </div>
 
-      <!-- Floors Tab -->
-      <div id="floorsTab" class="card" style="display:none;">
-        <h3>Select Floor</h3>
-        <div class="floor-grid" id="floorGrid"></div>
-        <h3 style="margin-top:15px;">Rooms on Floor <span id="selectedFloor">-</span></h3>
-        <div class="room-list" id="roomList">
-          <p style="color:#999;">Select a floor to see rooms</p>
+      <!-- Main Menu -->
+      <div class="card" id="mainMenu">
+        <h3>📋 Quick Actions</h3>
+        <button onclick="showSection('viewRooms')">🏠 View Rooms by Floor</button>
+        <button onclick="showSection('createOwner')" style="margin-top:6px;">👤 Create Room Owner</button>
+        <button onclick="showSection('createGuard')" style="margin-top:6px;">🛡️ Create Security Guard</button>
+        <button onclick="showSection('visitorLogs')" style="margin-top:6px;">📊 Visitor Logs</button>
+      </div>
+
+      <!-- VIEW ROOMS -->
+      <div class="card" id="viewRooms" style="display:none;">
+        <h3>🏠 Select Floor</h3>
+        <div class="grid-4" id="floorGrid"></div>
+        <h4 style="margin-top:15px;">Rooms on Floor <span id="selectedFloor">-</span></h4>
+        <div id="roomList" style="max-height:400px;overflow-y:auto;">
+          <p style="color:#999;text-align:center;padding:20px;">Select a floor above</p>
         </div>
-        <button onclick="showTab('floors')" style="background:#666;margin-top:10px;">Back</button>
+        <button onclick="goBack()" style="margin-top:10px;">⬅ Back to Menu</button>
       </div>
 
-      <!-- Create Owner Tab -->
-      <div id="createOwnerTab" class="card" style="display:none;">
+      <!-- CREATE OWNER -->
+      <div class="card" id="createOwner" style="display:none;">
         <h3>👤 Create Room Owner</h3>
-        <input type="text" id="ownerName" placeholder="Owner full name">
-        <input type="email" id="ownerEmail" placeholder="Owner email">
-        <input type="password" id="ownerPassword" placeholder="Set password">
-        <p style="font-size:14px;color:#666;">Select Floor → Select Room:</p>
-        <select id="ownerFloor" onchange="loadRoomsForOwner()">
-          <option value="">Choose floor</option>
+        <input type="text" id="ownerName" placeholder="Owner Full Name *">
+        <input type="email" id="ownerEmail" placeholder="Owner Email *">
+        <input type="tel" id="ownerPhone" placeholder="Owner Phone Number">
+        <input type="password" id="ownerPassword" placeholder="Set Password *">
+        
+        <label style="font-size:13px;font-weight:bold;margin-top:5px;">🏢 Select Floor:</label>
+        <select id="ownerFloor" onchange="loadOwnerRooms()">
+          <option value="">Choose floor first</option>
         </select>
+        
+        <label style="font-size:13px;font-weight:bold;">🚪 Select Room:</label>
         <select id="ownerRoom">
           <option value="">Choose room</option>
         </select>
-        <button onclick="createOwner()" class="btn-green">Create Owner</button>
-        <p class="msg" id="ownerMsg" style="display:none;"></p>
-        <button onclick="showTab('floors')" style="background:#666;margin-top:10px;">Back</button>
+        
+        <label style="font-size:13px;font-weight:bold;">📄 Upload Documents (Optional):</label>
+        <div class="file-upload" onclick="document.getElementById('ownerDocs').click()">
+          📁 Click to upload ID proof / Agreement
+        </div>
+        <input type="file" id="ownerDocs" multiple accept=".pdf,.jpg,.jpeg,.png" style="display:none;" onchange="showFileNames()">
+        <p id="fileNames" style="font-size:11px;color:#666;margin-top:5px;"></p>
+        
+        <button class="btn-green" onclick="createOwner()" style="margin-top:10px;">✅ Create Owner</button>
+        <div class="msg msg-success" id="ownerMsg"></div>
+        <button onclick="goBack()" style="margin-top:8px;">⬅ Back to Menu</button>
       </div>
 
-      <!-- Create Guard Tab -->
-      <div id="createGuardTab" class="card" style="display:none;">
+      <!-- CREATE GUARD -->
+      <div class="card" id="createGuard" style="display:none;">
         <h3>🛡️ Create Security Guard</h3>
-        <input type="text" id="guardName" placeholder="Guard full name">
-        <input type="email" id="guardEmail" placeholder="Guard email">
-        <input type="password" id="guardPassword" placeholder="Set password">
-        <button onclick="createGuard()" class="btn-green">Create Guard</button>
-        <p class="msg" id="guardMsg" style="display:none;"></p>
-        <button onclick="showTab('floors')" style="background:#666;margin-top:10px;">Back</button>
+        <input type="text" id="guardName" placeholder="Guard Full Name *">
+        <input type="email" id="guardEmail" placeholder="Guard Email *">
+        <input type="tel" id="guardPhone" placeholder="Guard Phone Number">
+        <input type="password" id="guardPassword" placeholder="Set Password *">
+        <button class="btn-green" onclick="createGuard()">✅ Create Guard</button>
+        <div class="msg msg-success" id="guardMsg"></div>
+        <button onclick="goBack()" style="margin-top:8px;">⬅ Back to Menu</button>
       </div>
 
-      <!-- Visitors Tab -->
-      <div id="visitorsTab" class="card" style="display:none;">
-        <h3>📋 Recent Visitors</h3>
-        <div id="visitorTable" style="font-size:14px;">Loading...</div>
-        <button onclick="showTab('floors')" style="background:#666;margin-top:10px;">Back</button>
+      <!-- VISITOR LOGS -->
+      <div class="card" id="visitorLogs" style="display:none;">
+        <h3>📊 Recent Visitors</h3>
+        <div id="visitorTable" style="max-height:500px;overflow-y:auto;">
+          <p style="color:#999;text-align:center;">Loading...</p>
+        </div>
+        <button onclick="goBack()" style="margin-top:10px;">⬅ Back to Menu</button>
       </div>
 
-      <button onclick="logout()" class="btn-red" style="margin-top:10px;">🚪 Logout</button>
+      <button class="btn-red" onclick="logout()" style="margin-top:10px;">🚪 Logout</button>
     </div>
   </div>
 
@@ -111,6 +164,7 @@
     var adminToken = '';
     var allRooms = [];
 
+    // ========== LOGIN ==========
     function adminLogin() {
       var email = document.getElementById('adminEmail').value;
       var password = document.getElementById('adminPassword').value;
@@ -126,16 +180,16 @@
           adminToken = data.token;
           document.getElementById('loginSection').style.display = 'none';
           document.getElementById('adminPanel').style.display = 'block';
-          loadAllRooms();
+          document.getElementById('statsGrid').style.display = 'grid';
+          loadAllData();
         } else {
-          var errEl = document.getElementById('loginError');
-          errEl.innerText = data.error || 'Login failed';
-          errEl.style.display = 'block';
+          showMsg('loginError', data.error || 'Login failed');
         }
       });
     }
 
-    function loadAllRooms() {
+    // ========== LOAD ALL DATA ==========
+    function loadAllData() {
       fetch('/api/admin/rooms', {
         headers: { 'Authorization': 'Bearer ' + adminToken }
       })
@@ -144,9 +198,47 @@
         allRooms = rooms;
         setupFloorGrid();
         setupOwnerFloorSelect();
+        updateStats();
       });
     }
 
+    function updateStats() {
+      var occupied = allRooms.filter(function(r) { return r.owner; });
+      document.getElementById('totalRooms').innerText = allRooms.length;
+      document.getElementById('occupiedRooms').innerText = occupied.length;
+      
+      // Count unique owners
+      var ownerIds = [];
+      allRooms.forEach(function(r) {
+        if (r.owner && r.owner._id && ownerIds.indexOf(r.owner._id) === -1) {
+          ownerIds.push(r.owner._id);
+        }
+      });
+      document.getElementById('totalOwners').innerText = ownerIds.length;
+    }
+
+    // ========== SHOW/HIDE SECTIONS ==========
+    function showSection(section) {
+      document.getElementById('mainMenu').style.display = 'none';
+      document.getElementById('viewRooms').style.display = 'none';
+      document.getElementById('createOwner').style.display = 'none';
+      document.getElementById('createGuard').style.display = 'none';
+      document.getElementById('visitorLogs').style.display = 'none';
+      
+      document.getElementById(section).style.display = 'block';
+      
+      if (section === 'visitorLogs') loadVisitorLogs();
+    }
+
+    function goBack() {
+      document.getElementById('viewRooms').style.display = 'none';
+      document.getElementById('createOwner').style.display = 'none';
+      document.getElementById('createGuard').style.display = 'none';
+      document.getElementById('visitorLogs').style.display = 'none';
+      document.getElementById('mainMenu').style.display = 'block';
+    }
+
+    // ========== FLOOR GRID ==========
     function setupFloorGrid() {
       var floors = [];
       allRooms.forEach(function(r) {
@@ -156,27 +248,38 @@
       
       var html = '';
       floors.forEach(function(f) {
-        html += '<div class="floor-btn" onclick="selectFloor(' + f + ')">Floor ' + f + '</div>';
+        html += '<button class="floor-btn" onclick="selectFloor(' + f + ')">F' + f + '</button>';
       });
       document.getElementById('floorGrid').innerHTML = html;
     }
 
     function selectFloor(floorNum) {
+      // Highlight active button
+      var btns = document.querySelectorAll('.floor-btn');
+      btns.forEach(function(b) { b.classList.remove('active'); });
+      event.target.classList.add('active');
+      
       document.getElementById('selectedFloor').innerText = floorNum;
       
       var roomsOnFloor = allRooms.filter(function(r) { return r.floor === floorNum; });
+      roomsOnFloor.sort(function(a,b) { return a.roomNumber.localeCompare(b.roomNumber); });
+      
       var html = '';
       roomsOnFloor.forEach(function(r) {
-        var statusClass = r.owner ? 'badge-occupied' : 'badge-available';
-        var statusText = r.owner ? 'Occupied' : 'Available';
+        var occupied = r.owner ? true : false;
+        var ownerName = r.owner ? r.owner.name : 'Available';
+        var badgeClass = occupied ? 'badge-occupied' : 'badge-available';
+        var badgeText = occupied ? 'Occupied' : 'Available';
+        
         html += '<div class="room-item">' +
-          '<span><strong>Room ' + r.roomNumber + '</strong></span>' +
-          '<span class="badge ' + statusClass + '">' + statusText + '</span>' +
+          '<span><strong>Room ' + r.roomNumber + '</strong>' + (occupied ? '<br><small style="color:#666;">' + ownerName + '</small>' : '') + '</span>' +
+          '<span class="badge ' + badgeClass + '">' + badgeText + '</span>' +
           '</div>';
       });
       document.getElementById('roomList').innerHTML = html;
     }
 
+    // ========== CREATE OWNER ==========
     function setupOwnerFloorSelect() {
       var floors = [];
       allRooms.forEach(function(r) {
@@ -191,93 +294,174 @@
       });
     }
 
-    function loadRoomsForOwner() {
+    function loadOwnerRooms() {
       var floor = document.getElementById('ownerFloor').value;
       var select = document.getElementById('ownerRoom');
       select.innerHTML = '<option value="">Choose room</option>';
       
       if (!floor) return;
       
-      var roomsOnFloor = allRooms.filter(function(r) { return r.floor == floor && !r.owner; });
+      var roomsOnFloor = allRooms.filter(function(r) { 
+        return r.floor == floor && !r.owner; 
+      });
+      roomsOnFloor.sort(function(a,b) { return a.roomNumber.localeCompare(b.roomNumber); });
+      
+      if (roomsOnFloor.length === 0) {
+        select.innerHTML = '<option value="">All rooms occupied on this floor</option>';
+        return;
+      }
+      
       roomsOnFloor.forEach(function(r) {
         select.innerHTML += '<option value="' + r._id + '">Room ' + r.roomNumber + '</option>';
       });
     }
 
-    function showTab(tab) {
-      document.getElementById('floorsTab').style.display = 'none';
-      document.getElementById('createOwnerTab').style.display = 'none';
-      document.getElementById('createGuardTab').style.display = 'none';
-      document.getElementById('visitorsTab').style.display = 'none';
-      
-      if (tab === 'floors') document.getElementById('floorsTab').style.display = 'block';
-      if (tab === 'createOwner') document.getElementById('createOwnerTab').style.display = 'block';
-      if (tab === 'createGuard') document.getElementById('createGuardTab').style.display = 'block';
-      if (tab === 'visitors') {
-        document.getElementById('visitorsTab').style.display = 'block';
-        loadVisitors();
+    function showFileNames() {
+      var files = document.getElementById('ownerDocs').files;
+      var names = [];
+      for (var i = 0; i < files.length; i++) {
+        names.push(files[i].name);
       }
-    }
-
-    function createGuard() {
-      var name = document.getElementById('guardName').value;
-      var email = document.getElementById('guardEmail').value;
-      var password = document.getElementById('guardPassword').value;
-      
-      fetch('/api/admin/guards', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + adminToken },
-        body: JSON.stringify({ name: name, email: email, password: password })
-      })
-      .then(function(res) { return res.json(); })
-      .then(function(data) {
-        var el = document.getElementById('guardMsg');
-        el.innerText = data.message || 'Guard created!';
-        el.className = 'msg success';
-        el.style.display = 'block';
-      });
+      document.getElementById('fileNames').innerText = names.length > 0 ? '📎 ' + names.join(', ') : '';
     }
 
     function createOwner() {
       var name = document.getElementById('ownerName').value;
       var email = document.getElementById('ownerEmail').value;
+      var phone = document.getElementById('ownerPhone').value;
       var password = document.getElementById('ownerPassword').value;
       var roomId = document.getElementById('ownerRoom').value;
       
+      if (!name || !email || !password || !roomId) {
+        alert('Please fill all required fields (*)');
+        return;
+      }
+      
       fetch('/api/admin/owners/create', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + adminToken },
-        body: JSON.stringify({ name: name, email: email, password: password, roomId: roomId })
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + adminToken
+        },
+        body: JSON.stringify({
+          name: name,
+          email: email,
+          phone: phone,
+          password: password,
+          roomId: roomId
+        })
       })
       .then(function(res) { return res.json(); })
       .then(function(data) {
-        var el = document.getElementById('ownerMsg');
-        el.innerText = data.message || 'Owner created!';
-        el.className = 'msg success';
-        el.style.display = 'block';
-        loadAllRooms();
+        if (data.message) {
+          showMsg('ownerMsg', '✅ Owner ' + name + ' created and assigned to room!');
+          document.getElementById('ownerName').value = '';
+          document.getElementById('ownerEmail').value = '';
+          document.getElementById('ownerPhone').value = '';
+          document.getElementById('ownerPassword').value = '';
+          loadAllData(); // Refresh data
+        } else {
+          showMsg('ownerMsg', data.error || 'Error creating owner');
+          document.getElementById('ownerMsg').className = 'msg msg-error';
+        }
       });
     }
 
-    function loadVisitors() {
+    // ========== CREATE GUARD ==========
+    function createGuard() {
+      var name = document.getElementById('guardName').value;
+      var email = document.getElementById('guardEmail').value;
+      var phone = document.getElementById('guardPhone').value;
+      var password = document.getElementById('guardPassword').value;
+      
+      if (!name || !email || !password) {
+        alert('Please fill all required fields (*)');
+        return;
+      }
+      
+      fetch('/api/admin/guards', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + adminToken
+        },
+        body: JSON.stringify({
+          name: name,
+          email: email,
+          phone: phone,
+          password: password
+        })
+      })
+      .then(function(res) { return res.json(); })
+      .then(function(data) {
+        if (data.message) {
+          showMsg('guardMsg', '✅ Guard ' + name + ' created!');
+          document.getElementById('guardName').value = '';
+          document.getElementById('guardEmail').value = '';
+          document.getElementById('guardPhone').value = '';
+          document.getElementById('guardPassword').value = '';
+        } else {
+          showMsg('guardMsg', data.error || 'Error creating guard');
+          document.getElementById('guardMsg').className = 'msg msg-error';
+        }
+      });
+    }
+
+    // ========== VISITOR LOGS ==========
+    function loadVisitorLogs() {
+      document.getElementById('visitorTable').innerHTML = '<p style="text-align:center;color:#999;">Loading...</p>';
+      
       fetch('/api/admin/visitors', {
         headers: { 'Authorization': 'Bearer ' + adminToken }
       })
       .then(function(res) { return res.json(); })
       .then(function(visitors) {
-        var html = '<table style="width:100%;font-size:13px;"><tr><th>Name</th><th>Room</th><th>Status</th></tr>';
+        if (!visitors || visitors.length === 0) {
+          document.getElementById('visitorTable').innerHTML = '<p style="text-align:center;color:#999;padding:20px;">No visitors yet</p>';
+          return;
+        }
+        
+        var html = '<table><thead><tr>' +
+          '<th>Name</th><th>Phone</th><th>Purpose</th><th>Room</th><th>Time</th><th>Status</th>' +
+          '</tr></thead><tbody>';
+        
         visitors.forEach(function(v) {
-          html += '<tr><td>' + v.name + '</td><td>' + (v.room ? v.room.roomNumber : '') + '</td><td>' + v.status + '</td></tr>';
+          var statusColor = v.status === 'approved' ? 'green' : v.status === 'rejected' ? 'red' : 'orange';
+          html += '<tr>' +
+            '<td><strong>' + v.name + '</strong></td>' +
+            '<td>' + (v.phone || '-') + '</td>' +
+            '<td>' + (v.purpose || '-') + '</td>' +
+            '<td>' + (v.room ? v.room.roomNumber : '-') + '</td>' +
+            '<td>' + new Date(v.entryTime).toLocaleString('en-IN', {hour:'2-digit',minute:'2-digit'}) + '</td>' +
+            '<td style="color:' + statusColor + ';font-weight:bold;">' + v.status + '</td>' +
+            '</tr>';
         });
-        html += '</table>';
+        
+        html += '</tbody></table>';
         document.getElementById('visitorTable').innerHTML = html;
+      })
+      .catch(function(err) {
+        document.getElementById('visitorTable').innerHTML = '<p style="color:red;">Error loading visitors</p>';
       });
+    }
+
+    // ========== HELPERS ==========
+    function showMsg(id, text) {
+      var el = document.getElementById(id);
+      el.innerText = text;
+      el.style.display = 'block';
+      setTimeout(function() { el.style.display = 'none'; }, 4000);
     }
 
     function logout() {
       adminToken = '';
       document.getElementById('loginSection').style.display = 'block';
       document.getElementById('adminPanel').style.display = 'none';
+      document.getElementById('mainMenu').style.display = 'block';
+      document.getElementById('viewRooms').style.display = 'none';
+      document.getElementById('createOwner').style.display = 'none';
+      document.getElementById('createGuard').style.display = 'none';
+      document.getElementById('visitorLogs').style.display = 'none';
     }
   </script>
 </body>
