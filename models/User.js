@@ -12,6 +12,8 @@ const userSchema = new mongoose.Schema({
   status: { type: String, enum: ['pending', 'approved', 'rejected', 'pending_activation'], default: 'pending' },
   activationToken: String,
   fcmToken: String,
+  resetOTP: String,
+resetOTPExpires: Date,
   guardId: String
 }, { timestamps: true });
 
