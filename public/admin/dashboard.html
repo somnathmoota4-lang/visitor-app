@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin Dashboard</title>
+  <style>
+    body { font-family: Arial; background: #f0f2f5; margin: 0; padding: 15px; }
+    .header { background: #1a237e; color: white; padding: 15px; text-align: center; border-radius: 10px; margin-bottom: 15px; }
+    .card { background: white; padding: 15px; margin: 10px 0; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    .card h3 { margin-top: 0; color: #1a237e; }
+    input, select { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; box-sizing: border-box; }
+    button { width: 100%; padding: 12px; background: #1a237e; color: white; border: none; border-radius: 5px; font-size: 14px; cursor: pointer; margin: 5px 0; }
+    .green { background: #2e7d32; }
+    .red { background: #c62828; }
+    .msg { padding: 10px; border-radius: 5px; margin: 10px 0; font-size: 14px; display: none; }
+    .success { background: #e8f5e9; color: #2e7d32; display: block; }
+    .error { background: #ffebee; color: #c62828; display: block; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th, td { padding: 6px; border: 1px solid #ddd; text-align: left; }
+    th { background: #f0f0f0; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h2>🏢 Admin Dashboard</h2>
+    <button onclick="logout()" style="background:white;color:#1a237e;width:auto;padding:8px 15px;">Logout</button>
+  </div>
+
+  <div class="card">
+    <h3>🛡️ Create Guard</h3>
+    <input type="text" id="guardName" placeholder="Guard Name">
+    <input type="email" id="guardEmail" placeholder="Guard Email">
+    <input type="password" id="guardPassword" placeholder="Password">
+    <button onclick="createGuard()">Create Guard</button>
+    <div class="msg" id="guardMsg"></div>
+  </div>
+
+  <div class="card">
+    <h3>👤 Create Owner</h3>
+    <input type="text" id="ownerName" placeholder="Owner Name">
+    <input type="email" id="ownerEmail" placeholder="Owner Email">
+    <input type="password" id="ownerPassword" placeholder="Password">
+    <select id="ownerRoom"><option value="">Select Room</option></select>
+    <button class="green" onclick="createOwner()">Create Owner</button>
+    <div class="msg" id="ownerMsg"></div>
+  </div>
+
+  <script>
+    var token = localStorage.getItem('adminToken');
+    if (!token) { window.location = '/admin/index.html'; }
+
+    // Load rooms
+    fetch('/api/admin/rooms', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    })
+    .then(res => res.json())
+    .then(rooms => {
+      var select = document.getElementById('ownerRoom');
+      rooms.forEach(function(r) {
+        if (!r.owner) {
+          select.innerHTML += '<option value="' + r._id + '">Floor ' + r.floor + ' - Room ' + r.roomNumber + '</option>';
+        }
+      });
+    });
+
+    function createGuard() {
+      var name = document.getElementById('guardName').value;
+      var email = document.getElementById('guardEmail').value;
+      var password = document.getElementById('guardPassword').value;
+      
+      fetch('/api/admin/guards', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ name, email, password })
+      })
+      .then(res => res.json())
+      .then(data => {
+        var el = document.getElementById('guardMsg');
+        el.innerText = data.message || 'Guard created!';
+        el.className = 'msg success';
+      });
+    }
+
+    function createOwner() {
+      var name = document.getElementById('ownerName').value;
+      var email = document.getElementById('ownerEmail').value;
+      var password = document.getElementById('ownerPassword').value;
+      var roomId = document.getElementById('ownerRoom').value;
+      
+      fetch('/api/admin/owners/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ name, email, password, roomId })
+      })
+      .then(res => res.json())
+      .then(data => {
+        var el = document.getElementById('ownerMsg');
+        el.innerText = data.message || 'Owner created!';
+        el.className = 'msg success';
+      });
+    }
+
+    function logout() {
+      localStorage.removeItem('adminToken');
+      window.location = '/admin/index.html';
+    }
+  </script>
+</body>
+</html>
