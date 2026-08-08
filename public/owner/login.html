@@ -29,6 +29,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
       });
+      <a href="/forgot-password.html" style="display:block;text-align:center;margin-top:10px;color:#667eea;font-size:14px;">Forgot Password?</a>
       const data = await res.json();
       if (data.token) {
         localStorage.setItem('ownerToken', data.token);
