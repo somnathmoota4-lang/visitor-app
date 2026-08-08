@@ -17,14 +17,28 @@
   <button onclick="login()">Login</button>
   <p id="error"></p>
   <script>
-    async function login() {
-      const email = document.getElementById('email').value;
-      const password = document.getElementById('password').value;
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-      });
+    function login() {
+  var email = document.getElementById('email').value;
+  var password = document.getElementById('password').value;
+
+  fetch('/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: email, password: password })
+  })
+  .then(function(response) { return response.json(); })
+  .then(function(data) {
+    if (data.token) {
+      localStorage.setItem('guardToken', data.token);
+      window.location = 'checkin.html';
+    } else {
+      document.getElementById('error').innerText = data.error || 'Login failed';
+    }
+  })
+  .catch(function() {
+    document.getElementById('error').innerText = 'Connection error';
+  });
+}
       const data = await res.json();
       if (data.token) {
         localStorage.setItem('guardToken', data.token);
