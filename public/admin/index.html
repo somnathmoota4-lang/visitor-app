@@ -21,8 +21,7 @@
     <button onclick="login()">Login</button>
     <p class="error" id="error"></p>
   </div>
-
-  <script>
+<script>
     function login() {
       var email = document.getElementById('email').value;
       var password = document.getElementById('password').value;
@@ -35,8 +34,14 @@
       .then(function(response) { return response.json(); })
       .then(function(data) {
         if (data.token) {
-          alert('Login successful! Redirecting...');
-          window.location.href = '/admin/dashboard.html';
+          // SAVE TOKEN FIRST
+          localStorage.setItem('adminToken', data.token);
+          localStorage.setItem('adminUser', JSON.stringify(data.user));
+          
+          // Small delay then redirect
+          setTimeout(function() {
+            window.location.href = '/admin/dashboard.html';
+          }, 500);
         } else {
           document.getElementById('error').innerText = data.error || 'Login failed';
         }
@@ -45,6 +50,6 @@
         document.getElementById('error').innerText = 'Connection error';
       });
     }
-  </script>
+</script>
 </body>
 </html>
