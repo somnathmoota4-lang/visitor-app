@@ -47,8 +47,9 @@
 
   <script>
     var token = localStorage.getItem('adminToken');
-    if (!token) { window.location = '/admin/index.html'; }
-
+if (!token) {
+  window.location.href = '/admin/index.html';
+}
     // Load rooms
     fetch('/api/admin/rooms', {
       headers: { 'Authorization': 'Bearer ' + token }
