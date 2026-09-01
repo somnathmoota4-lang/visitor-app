@@ -49,9 +49,10 @@
   </div>
 
   <div class="tabs">
-    <div class="tab active" onclick="switchTab('checkin')">✍️ Check-in</div>
-    <div class="tab" onclick="switchTab('queue')">📊 Queue <span class="count-badge" id="queueCount">0</span></div>
-  </div>
+  <div class="tab active" onclick="switchTab('checkin')">✍️ Check-in</div>
+  <div class="tab" onclick="switchTab('queue')">📊 Queue <span class="count-badge" id="queueCount">0</span></div>
+  <div class="tab" onclick="switchTab('history')">📜 History</div>
+</div>
 
   <div class="container">
     <!-- CHECK-IN TAB -->
@@ -117,6 +118,16 @@
     </div>
   </div>
 
+  <!-- HISTORY TAB -->
+<div id="historyTab" style="display:none;">
+  <div class="card">
+    <h3>📜 Past Check-ins</h3>
+    <div id="historyList">
+      <p style="color:#999;text-align:center;">Loading...</p>
+    </div>
+  </div>
+</div>
+  
   <script src="/socket.io/socket.io.js"></script>
   <script>
     var token = localStorage.getItem('guardToken');
@@ -137,20 +148,45 @@
     });
 
     function switchTab(tab) {
-      document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
-      document.getElementById('checkinTab').style.display = 'none';
-      document.getElementById('queueTab').style.display = 'none';
-      
-      if (tab === 'checkin') {
-        document.querySelector('.tab:nth-child(1)').classList.add('active');
-        document.getElementById('checkinTab').style.display = 'block';
-      } else {
-        document.querySelector('.tab:nth-child(2)').classList.add('active');
-        document.getElementById('queueTab').style.display = 'block';
-        updateQueueDisplay();
-      }
+  document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+  document.getElementById('checkinTab').style.display = 'none';
+  document.getElementById('queueTab').style.display = 'none';
+  document.getElementById('historyTab').style.display = 'none';
+  
+  if (tab === 'checkin') {
+    document.querySelector('.tab:nth-child(1)').classList.add('active');
+    document.getElementById('checkinTab').style.display = 'block';
+  } else if (tab === 'queue') {
+    document.querySelector('.tab:nth-child(2)').classList.add('active');
+    document.getElementById('queueTab').style.display = 'block';
+    updateQueueDisplay();
+  } else if (tab === 'history') {
+    document.querySelector('.tab:nth-child(3)').classList.add('active');
+    document.getElementById('historyTab').style.display = 'block';
+    loadHistory();
+  }
+}
+    function loadHistory() {
+  fetch('/api/guard/today', {
+    headers: { 'Authorization': 'Bearer ' + token }
+  })
+  .then(function(res) { return res.json(); })
+  .then(function(visitors) {
+    var html = '';
+    if (visitors.length === 0) {
+      html = '<div class="empty-state"><div class="icon">📭</div><p>No visitors checked in today</p></div>';
+    } else {
+      visitors.forEach(function(v) {
+        var statusColor = v.status === 'approved' ? 'green' : v.status === 'rejected' ? 'red' : 'orange';
+        html += '<div style="padding:10px;border-bottom:1px solid #eee;">' +
+          '<strong>' + v.name + '</strong> <span style="color:' + statusColor + ';">(' + v.status + ')</span>' +
+          '<br><small>📱 ' + v.phone + ' | 🎯 ' + v.purpose + ' | 🕐 ' + new Date(v.entryTime).toLocaleTimeString() + '</small>' +
+          '</div>';
+      });
     }
-
+    document.getElementById('historyList').innerHTML = html;
+  });
+}
     function setupFloorSelect() {
       var floors = [];
       allRooms.forEach(function(r) {
