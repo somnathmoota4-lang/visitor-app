@@ -3,7 +3,10 @@ const auth = require('../middleware/auth');
 const Visitor = require('../models/Visitor');
 const Room = require('../models/Room');
 const upload = require('../middleware/upload');
-const admin = require('firebase-admin'); // if push notification later
+
+router.use(auth('guard'));
+
+// ... rest of your code stays the same
 
 router.use(auth('guard'));
 
