@@ -10,14 +10,47 @@
     .header h2 { font-size: 22px; }
     .card { background: white; padding: 20px; margin: 15px 0; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
     .card h3 { color: #1a237e; margin-bottom: 15px; font-size: 18px; }
-    input, select { width: 100%; padding: 12px; margin: 8px 0; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px; }
-    input:focus, select:focus { border-color: #1a237e; outline: none; }
+    input { width: 100%; padding: 12px; margin: 8px 0; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px; }
+    input:focus { border-color: #1a237e; outline: none; }
     button { width: 100%; padding: 14px; background: #1a237e; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
     button.green { background: #2e7d32; }
     .msg { padding: 10px; border-radius: 8px; margin-top: 10px; font-size: 14px; display: none; }
     .msg.success { background: #e8f5e9; color: #2e7d32; display: block; }
     .msg.error { background: #ffebee; color: #c62828; display: block; }
     .logout-btn { background: #c62828 !important; margin-top: 20px; }
+
+    /* Sliding chip containers */
+    .chip-scroll {
+      display: flex;
+      overflow-x: auto;
+      gap: 8px;
+      padding: 10px 0;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: thin;
+    }
+    .chip {
+      flex: 0 0 auto;
+      padding: 10px 18px;
+      background: #e8eaf6;
+      border: 2px solid #c5cae9;
+      border-radius: 25px;
+      font-size: 14px;
+      font-weight: bold;
+      color: #1a237e;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.2s;
+    }
+    .chip.selected {
+      background: #1a237e;
+      color: white;
+      border-color: #1a237e;
+    }
+    .section-label {
+      font-weight: bold;
+      margin: 10px 0 5px;
+      color: #333;
+    }
   </style>
 </head>
 <body>
@@ -33,14 +66,13 @@
     <input type="email" id="ownerEmail" placeholder="Owner Email" />
     <input type="tel" id="ownerPhone" placeholder="Owner Phone" />
     <input type="password" id="ownerPassword" placeholder="Password" />
-    <label style="font-weight:bold;">Select Floor</label>
-    <select id="ownerFloor" onchange="loadRoomsForOwner()">
-      <option value="">-- Choose Floor --</option>
-    </select>
-    <label style="font-weight:bold;">Select Room</label>
-    <select id="ownerRoom">
-      <option value="">-- Choose Room --</option>
-    </select>
+
+    <div class="section-label">Select Floor</div>
+    <div id="floorChips" class="chip-scroll"></div>
+
+    <div class="section-label">Select Room</div>
+    <div id="roomChips" class="chip-scroll"></div>
+
     <button class="green" onclick="createOwner()">✅ Create Owner</button>
     <div class="msg" id="ownerMsg"></div>
   </div>
@@ -60,8 +92,10 @@
     if (!token) window.location = '/admin/index.html';
 
     let allRooms = [];
+    let selectedFloor = null;
+    let selectedRoomId = null;
 
-    // Load all rooms and populate floor select
+    // Load all rooms and populate floor chips
     function loadAllRooms() {
       fetch('/api/admin/rooms', {
         headers: { 'Authorization': 'Bearer ' + token }
@@ -69,34 +103,57 @@
       .then(res => res.json())
       .then(rooms => {
         allRooms = rooms;
-        populateFloorSelect();
+        renderFloorChips();
       })
       .catch(err => console.error('Error loading rooms:', err));
     }
 
-    function populateFloorSelect() {
+    function renderFloorChips() {
       const floors = [...new Set(allRooms.map(r => r.floor))].sort((a,b) => a-b);
-      const floorSelect = document.getElementById('ownerFloor');
-      floorSelect.innerHTML = '<option value="">-- Choose Floor --</option>';
+      const container = document.getElementById('floorChips');
+      container.innerHTML = '';
       floors.forEach(f => {
-        floorSelect.innerHTML += `<option value="${f}">Floor ${f}</option>`;
+        const chip = document.createElement('div');
+        chip.className = 'chip';
+        chip.textContent = `Floor ${f}`;
+        chip.onclick = () => selectFloor(f, chip);
+        container.appendChild(chip);
       });
     }
 
-    function loadRoomsForOwner() {
-      const floor = document.getElementById('ownerFloor').value;
-      const roomSelect = document.getElementById('ownerRoom');
-      roomSelect.innerHTML = '<option value="">-- Choose Room --</option>';
-      if (!floor) return;
+    function selectFloor(floor, chipEl) {
+      selectedFloor = floor;
+      selectedRoomId = null;
+      document.querySelectorAll('#floorChips .chip').forEach(c => c.classList.remove('selected'));
+      chipEl.classList.add('selected');
+      renderRoomChips();
+    }
 
-      const availableRooms = allRooms.filter(r => r.floor == floor && !r.owner);
-      if (availableRooms.length === 0) {
-        roomSelect.innerHTML = '<option value="">No available rooms on this floor</option>';
+    function renderRoomChips() {
+      const container = document.getElementById('roomChips');
+      container.innerHTML = '';
+      if (!selectedFloor) {
+        container.innerHTML = '<div style="color:#999;">Please select a floor first</div>';
         return;
       }
-      availableRooms.forEach(r => {
-        roomSelect.innerHTML += `<option value="${r._id}">Room ${r.roomNumber}</option>`;
+      const availableRooms = allRooms.filter(r => r.floor == selectedFloor && !r.owner);
+      if (availableRooms.length === 0) {
+        container.innerHTML = '<div style="color:#999;">No available rooms on this floor</div>';
+        return;
+      }
+      availableRooms.forEach(room => {
+        const chip = document.createElement('div');
+        chip.className = 'chip';
+        chip.textContent = `Room ${room.roomNumber}`;
+        chip.onclick = () => selectRoom(room._id, chip);
+        container.appendChild(chip);
       });
+    }
+
+    function selectRoom(roomId, chipEl) {
+      selectedRoomId = roomId;
+      document.querySelectorAll('#roomChips .chip').forEach(c => c.classList.remove('selected'));
+      chipEl.classList.add('selected');
     }
 
     function createOwner() {
@@ -104,10 +161,9 @@
       const email = document.getElementById('ownerEmail').value;
       const phone = document.getElementById('ownerPhone').value;
       const password = document.getElementById('ownerPassword').value;
-      const roomId = document.getElementById('ownerRoom').value;
       const msgEl = document.getElementById('ownerMsg');
 
-      if (!name || !email || !password || !roomId) {
+      if (!name || !email || !password || !selectedRoomId) {
         msgEl.className = 'msg error';
         msgEl.innerText = 'Please fill all fields and select a room.';
         return;
@@ -116,7 +172,7 @@
       fetch('/api/admin/owners/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-        body: JSON.stringify({ name, email, phone, password, roomId })
+        body: JSON.stringify({ name, email, phone, password, roomId: selectedRoomId })
       })
       .then(res => res.json())
       .then(data => {
@@ -131,7 +187,9 @@
           document.getElementById('ownerEmail').value = '';
           document.getElementById('ownerPhone').value = '';
           document.getElementById('ownerPassword').value = '';
-          loadAllRooms(); // refresh rooms
+          selectedFloor = null;
+          selectedRoomId = null;
+          loadAllRooms(); // refresh rooms and chips
         }
       })
       .catch(err => {
@@ -179,7 +237,6 @@
       window.location = '/admin/index.html';
     }
 
-    // Initial load
     loadAllRooms();
   </script>
 </body>
