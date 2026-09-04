@@ -3,6 +3,7 @@ const visitorSchema = new mongoose.Schema({
   name: String,
   phone: String,
   purpose: String,
+  source: String,   // added
   photo: String,
   room: { type: mongoose.Schema.Types.ObjectId, ref: 'Room' },
   owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
