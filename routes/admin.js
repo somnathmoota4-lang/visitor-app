@@ -119,5 +119,13 @@ router.post('/owners/remove', async (req, res) => {
     res.status(400).json({ error: err.message });
   }
 });
-
+// Get all owners
+router.get('/owners', async (req, res) => {
+  try {
+    const owners = await User.find({ role: 'owner' }).populate('room', 'roomNumber floor');
+    res.json(owners);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 module.exports = router;
