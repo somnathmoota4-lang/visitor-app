@@ -11,7 +11,6 @@
     input, select { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; box-sizing: border-box; }
     button { width: 100%; padding: 12px; background: #1a237e; color: white; border: none; border-radius: 5px; font-size: 14px; cursor: pointer; margin: 5px 0; }
     .green { background: #2e7d32; }
-    .red { background: #c62828; }
     .msg { padding: 10px; border-radius: 5px; margin: 10px 0; font-size: 14px; display: none; }
     .success { background: #e8f5e9; color: #2e7d32; display: block; }
     .error { background: #ffebee; color: #c62828; display: block; }
@@ -39,36 +38,66 @@
     <h3>👤 Create Owner</h3>
     <input type="text" id="ownerName" placeholder="Owner Name">
     <input type="email" id="ownerEmail" placeholder="Owner Email">
+    <input type="tel" id="ownerPhone" placeholder="Owner Phone">
     <input type="password" id="ownerPassword" placeholder="Password">
+    <select id="ownerFloor" onchange="loadOwnerRooms()"><option value="">Select Floor</option></select>
     <select id="ownerRoom"><option value="">Select Room</option></select>
     <button class="green" onclick="createOwner()">Create Owner</button>
     <div class="msg" id="ownerMsg"></div>
   </div>
 
+  <div class="card">
+    <h3>📊 Visitors Log</h3>
+    <div id="visitorTable">Loading...</div>
+  </div>
+
+  <div class="card">
+    <h3>👥 Owner List</h3>
+    <div id="ownerList">Loading...</div>
+  </div>
+
   <script>
     var token = localStorage.getItem('adminToken');
-if (!token) {
-  window.location.href = '/admin/index.html';
-}
-    // Load rooms
-    fetch('/api/admin/rooms', {
-      headers: { 'Authorization': 'Bearer ' + token }
-    })
-    .then(res => res.json())
-    .then(rooms => {
+    if (!token) window.location = '/admin/index.html';
+
+    var allRooms = [];
+
+    function loadAllRooms() {
+      fetch('/api/admin/rooms', { headers: { 'Authorization': 'Bearer ' + token } })
+        .then(res => res.json())
+        .then(rooms => {
+          allRooms = rooms;
+          setupFloorSelect();
+          loadOwnerList();
+        });
+    }
+
+    function setupFloorSelect() {
+      var floors = [];
+      allRooms.forEach(r => { if (floors.indexOf(r.floor) === -1) floors.push(r.floor); });
+      floors.sort((a,b) => a-b);
+      var select = document.getElementById('ownerFloor');
+      select.innerHTML = '<option value="">Select Floor</option>';
+      floors.forEach(f => select.innerHTML += `<option value="${f}">Floor ${f}</option>`);
+    }
+
+    function loadOwnerRooms() {
+      var floor = document.getElementById('ownerFloor').value;
       var select = document.getElementById('ownerRoom');
-      rooms.forEach(function(r) {
-        if (!r.owner) {
-          select.innerHTML += '<option value="' + r._id + '">Floor ' + r.floor + ' - Room ' + r.roomNumber + '</option>';
-        }
-      });
-    });
+      select.innerHTML = '<option value="">Select Room</option>';
+      if (!floor) return;
+      var roomsOnFloor = allRooms.filter(r => r.floor == floor && !r.owner);
+      if (roomsOnFloor.length === 0) {
+        select.innerHTML = '<option value="">All rooms occupied</option>';
+        return;
+      }
+      roomsOnFloor.forEach(r => select.innerHTML += `<option value="${r._id}">Room ${r.roomNumber}</option>`);
+    }
 
     function createGuard() {
       var name = document.getElementById('guardName').value;
       var email = document.getElementById('guardEmail').value;
       var password = document.getElementById('guardPassword').value;
-      
       fetch('/api/admin/guards', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
@@ -77,34 +106,61 @@ if (!token) {
       .then(res => res.json())
       .then(data => {
         var el = document.getElementById('guardMsg');
-        el.innerText = data.message || 'Guard created!';
         el.className = 'msg success';
+        el.innerText = data.message || 'Guard created!';
       });
     }
 
     function createOwner() {
       var name = document.getElementById('ownerName').value;
       var email = document.getElementById('ownerEmail').value;
+      var phone = document.getElementById('ownerPhone').value;
       var password = document.getElementById('ownerPassword').value;
       var roomId = document.getElementById('ownerRoom').value;
-      
+      if (!name || !email || !password || !roomId) { alert('Fill all fields'); return; }
       fetch('/api/admin/owners/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-        body: JSON.stringify({ name, email, password, roomId })
+        body: JSON.stringify({ name, email, phone, password, roomId })
       })
       .then(res => res.json())
       .then(data => {
         var el = document.getElementById('ownerMsg');
-        el.innerText = data.message || 'Owner created!';
-        el.className = 'msg success';
+        if (data.error) { el.className = 'msg error'; el.innerText = data.error; }
+        else { el.className = 'msg success'; el.innerText = data.message || 'Owner created!'; loadAllRooms(); }
       });
     }
 
-    function logout() {
-      localStorage.removeItem('adminToken');
-      window.location = '/admin/index.html';
+    function loadOwnerList() {
+      fetch('/api/admin/owners', { headers: { 'Authorization': 'Bearer ' + token } })
+        .then(res => res.json())
+        .then(owners => {
+          var html = '<table><tr><th>Name</th><th>Email</th><th>Phone</th><th>Room</th></tr>';
+          owners.forEach(o => {
+            html += `<tr><td>${o.name}</td><td>${o.email}</td><td>${o.phone || '-'}</td><td>${o.room ? o.room.roomNumber : '-'}</td></tr>`;
+          });
+          html += '</table>';
+          document.getElementById('ownerList').innerHTML = html;
+        });
     }
+
+    function loadVisitorLogs() {
+      fetch('/api/admin/visitors', { headers: { 'Authorization': 'Bearer ' + token } })
+        .then(res => res.json())
+        .then(visitors => {
+          var html = '<table><tr><th>Name</th><th>Phone</th><th>Purpose</th><th>Room</th><th>Status</th></tr>';
+          visitors.forEach(v => {
+            html += `<tr><td>${v.name}</td><td>${v.phone}</td><td>${v.purpose}</td><td>${v.room ? v.room.roomNumber : ''}</td><td>${v.status}</td></tr>`;
+          });
+          html += '</table>';
+          document.getElementById('visitorTable').innerHTML = html;
+        });
+    }
+
+    function logout() { localStorage.removeItem('adminToken'); window.location = '/admin/index.html'; }
+
+    loadAllRooms();
+    loadVisitorLogs();
   </script>
 </body>
 </html>
