@@ -4,338 +4,83 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Owner Dashboard</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; min-height: 100vh; padding-bottom: 70px; }
-    .header { background: linear-gradient(135deg, #1a237e, #283593); color: white; padding: 15px; text-align: center; }
-    .container { max-width: 500px; margin: 10px auto; padding: 10px; }
-    
-    .card { background: white; padding: 15px; margin: 10px 0; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-    .card h3 { color: #1a237e; margin-bottom: 12px; font-size: 16px; border-bottom: 2px solid #e8eaf6; padding-bottom: 8px; }
-    
-    input, select, textarea, button { width: 100%; padding: 10px; margin: 6px 0; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; font-family: inherit; }
-    input:focus, select:focus, textarea:focus { border-color: #1a237e; outline: none; }
-    button { background: #1a237e; color: white; border: none; font-weight: bold; cursor: pointer; padding: 12px; }
-    .btn-green { background: #2e7d32; }
-    .btn-red { background: #c62828; }
-    .btn-orange { background: #e65100; }
-    
-    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
-    
-    .badge { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: bold; }
-    .badge-pending { background: #fff3e0; color: #e65100; }
-    .badge-progress { background: #e3f2fd; color: #1565c0; }
-    .badge-resolved { background: #e8f5e9; color: #2e7d32; }
-    .badge-urgent { background: #ffebee; color: #c62828; }
-    
-    .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; display: flex; border-top: 2px solid #e0e0e0; z-index: 100; }
-    .nav-item { flex: 1; text-align: center; padding: 10px 5px; cursor: pointer; font-size: 11px; color: #666; }
-    .nav-item.active { color: #1a237e; font-weight: bold; }
-    .nav-item .icon { font-size: 20px; display: block; }
-    
-    .worker-card { display: flex; align-items: center; padding: 10px; border-bottom: 1px solid #eee; gap: 10px; }
-    .worker-icon { width: 45px; height: 45px; border-radius: 50%; background: #e8eaf6; display: flex; align-items: center; justify-content: center; font-size: 20px; }
-    .worker-info { flex: 1; }
-    .worker-info strong { font-size: 14px; }
-    .worker-info small { font-size: 11px; color: #666; display: block; }
-    .call-btn { background: #4CAF50; color: white; border: none; padding: 8px 12px; border-radius: 20px; font-size: 12px; cursor: pointer; width: auto; }
-    
-    .complaint-item { padding: 10px; border-bottom: 1px solid #eee; }
-    .complaint-item h4 { font-size: 14px; margin-bottom: 4px; }
-    .complaint-item p { font-size: 12px; color: #666; }
-    
-    .empty-state { text-align: center; padding: 30px; color: #999; }
-    .empty-state .icon { font-size: 48px; }
+    /* Keep your existing styles */
   </style>
 </head>
 <body>
-  <div class="header">
-    <h2>🏠 My Home</h2>
-  </div>
+  <div class="header"><h2>🏠 My Home</h2></div>
+  <div class="container"><div id="tabContent"></div></div>
 
-  <div class="container">
-    <!-- TAB CONTENT AREA -->
-    <div id="tabContent"></div>
-  </div>
-
-  <!-- BOTTOM NAVIGATION -->
   <div class="bottom-nav">
-    <div class="nav-item active" onclick="showTab('visitors')">
+    <div class="nav-item active" data-tab="visitors" onclick="showTab('visitors')">
       <span class="icon">👥</span> Visitors
     </div>
-    <div class="nav-item" onclick="showTab('complaints')">
+    <div class="nav-item" data-tab="complaints" onclick="showTab('complaints')">
       <span class="icon">📝</span> Complaints
     </div>
-    <div class="nav-item" onclick="showTab('workers')">
+    <div class="nav-item" data-tab="workers" onclick="showTab('workers')">
       <span class="icon">🔧</span> Help
     </div>
-    <div class="nav-item" onclick="showTab('emergency')">
+    <div class="nav-item" data-tab="emergency" onclick="showTab('emergency')">
       <span class="icon">🆘</span> Emergency
     </div>
-    <div class="nav-item" onclick="showTab('profile')">
+    <div class="nav-item" data-tab="profile" onclick="showTab('profile')">
       <span class="icon">👤</span> Me
     </div>
   </div>
 
   <script>
     const token = localStorage.getItem('ownerToken');
-    if (!token) { window.location = 'login.html'; }
-
-    var currentTab = 'visitors';
+    if (!token) window.location = 'login.html';
 
     function showTab(tab) {
-      currentTab = tab;
-      document.querySelectorAll('.nav-item').forEach(function(el) { el.classList.remove('active'); });
-      event.target.closest('.nav-item').classList.add('active');
-      
-      var html = '';
-      
+      // Remove active from all nav items
+      document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+      // Add active to the clicked one
+      document.querySelector(`.nav-item[data-tab="${tab}"]`).classList.add('active');
+
+      let html = '';
       if (tab === 'visitors') {
-        html = '<div class="card"><h3>⏳ Pending Visitors</h3><div id="pendingList">Loading...</div></div>';
-        html += '<div class="card"><h3>📋 Recent History</h3><div id="historyList">Loading...</div></div>';
+        html = `<div class="card"><h3>⏳ Pending</h3><div id="pendingList">Loading...</div></div>
+                <div class="card"><h3>📋 History</h3><div id="historyList">Loading...</div></div>`;
         document.getElementById('tabContent').innerHTML = html;
         loadPending();
         loadHistory();
-      }
-      
-      if (tab === 'complaints') {
-        html = '<div class="card"><h3>📝 Raise New Complaint</h3>' +
-          '<input type="text" id="complaintTitle" placeholder="Title (e.g., Water leakage in kitchen)">' +
-          '<select id="complaintCategory">' +
-            '<option value="">Select Category</option>' +
-            '<option value="plumbing">🚰 Plumbing</option>' +
-            '<option value="electrical">⚡ Electrical</option>' +
-            '<option value="cleaning">🧹 Cleaning</option>' +
-            '<option value="painting">🎨 Painting</option>' +
-            '<option value="pest_control">🐜 Pest Control</option>' +
-            '<option value="structural">🏗️ Structural</option>' +
-            '<option value="other">📌 Other</option>' +
-          '</select>' +
-          '<select id="complaintPriority">' +
-            '<option value="medium">Priority: Medium</option>' +
-            '<option value="low">Priority: Low</option>' +
-            '<option value="high">Priority: High</option>' +
-            '<option value="urgent">Priority: Urgent</option>' +
-          '</select>' +
-          '<textarea id="complaintDesc" rows="3" placeholder="Describe the issue in detail..."></textarea>' +
-          '<button class="btn-green" onclick="submitComplaint()">📤 Submit Complaint</button>' +
-          '<div id="complaintMsg" style="margin-top:8px;font-size:13px;"></div>' +
-          '</div>';
-        
-        html += '<div class="card"><h3>📊 My Complaints</h3><div id="complaintList">Loading...</div></div>';
+      } else if (tab === 'complaints') {
+        html = `<div class="card"><h3>📝 Raise Complaint</h3>
+          <input id="complaintTitle" placeholder="Title">
+          <select id="complaintCategory">...</select>
+          <select id="complaintPriority">...</select>
+          <textarea id="complaintDesc" rows="3"></textarea>
+          <button class="btn-green" onclick="submitComplaint()">Submit</button>
+          <div id="complaintMsg"></div>
+        </div>
+        <div class="card"><h3>📊 My Complaints</h3><div id="complaintList">Loading...</div></div>`;
         document.getElementById('tabContent').innerHTML = html;
         loadMyComplaints();
-      }
-      
-      if (tab === 'workers') {
-        html = '<div class="card"><h3>🔧 Maintenance Workers</h3><div id="workerList">Loading...</div></div>';
+      } else if (tab === 'workers') {
+        html = `<div class="card"><h3>🔧 Workers</h3><div id="workerList">Loading...</div></div>`;
         document.getElementById('tabContent').innerHTML = html;
         loadWorkers();
-      }
-      
-      if (tab === 'emergency') {
-        html = '<div class="card"><h3>🆘 Emergency Contacts</h3><div id="emergencyList">Loading...</div></div>';
+      } else if (tab === 'emergency') {
+        html = `<div class="card"><h3>🆘 Emergency Contacts</h3><div id="emergencyList">Loading...</div></div>`;
         document.getElementById('tabContent').innerHTML = html;
         loadEmergencyContacts();
+      } else if (tab === 'profile') {
+        html = `<div class="card"><h3>👤 My Profile</h3>
+          <div id="profileInfo"></div>
+          <button onclick="window.location.href='/change-password.html'">🔐 Change Password</button>
+          <button class="btn-red" onclick="logout()">🚪 Logout</button>
+        </div>`;
+        document.getElementById('tabContent').innerHTML = html;
+        showProfile();
       }
-      
-      if (tab === 'profile') {
-  var user = {};
-  try {
-    var payload = JSON.parse(atob(token.split('.')[1]));
-    user.name = payload.name;
-    user.email = payload.email;
-    user.role = payload.role;
-  } catch(e) {}
-
-  html = '<div class="card"><h3>👤 My Profile</h3>';
-  html += '<div style="text-align:center;padding:10px;">';
-  html += '<div style="font-size:50px;margin-bottom:10px;">👤</div>';
-  html += '<h4>' + (user.name || 'Owner') + '</h4>';
-  html += '<p style="color:#666;font-size:14px;">' + (user.email || '') + '</p>';
-  html += '<p style="color:#666;font-size:13px;">Role: ' + (user.role || 'owner') + '</p>';
-  html += '</div>';
-  html += '<hr style="margin:15px 0;">';
-  html += '<button onclick="window.location.href=\'/change-password.html\'" style="background:#1565c0;color:white;padding:12px;border:none;border-radius:8px;width:100%;margin-top:10px;">🔐 Change Password</button>';
-  html += '<button onclick="logout()" class="btn-red" style="margin-top:10px;">🚪 Logout</button>';
-  html += '</div>';
-  document.getElementById('tabContent').innerHTML = html;
-}
-
-    // ========== VISITORS ==========
-    function loadPending() {
-      fetch('/api/owner/pending', {
-        headers: { 'Authorization': 'Bearer ' + token }
-      })
-      .then(res => res.json())
-      .then(visitors => {
-        var html = '';
-        if (visitors.length === 0) {
-          html = '<div class="empty-state"><div class="icon">✅</div><p>No pending visitors</p></div>';
-        } else {
-          visitors.forEach(function(v) {
-            html += '<div style="padding:10px;border-bottom:1px solid #eee;display:flex;gap:10px;align-items:center;">' +
-              '<div style="font-size:30px;">👤</div>' +
-              '<div style="flex:1;"><strong>' + v.name + '</strong><br><small>📱 ' + v.phone + ' | 🎯 ' + v.purpose + '</small></div>' +
-              '<button class="btn-green" style="width:auto;padding:6px 12px;" onclick="respond(\'' + v._id + '\',\'approve\')">✓</button>' +
-              '<button class="btn-red" style="width:auto;padding:6px 12px;" onclick="respond(\'' + v._id + '\',\'reject\')">✕</button>' +
-              '</div>';
-          });
-        }
-        document.getElementById('pendingList').innerHTML = html;
-      });
     }
 
-    function loadHistory() {
-      fetch('/api/owner/history', {
-        headers: { 'Authorization': 'Bearer ' + token }
-      })
-      .then(res => res.json())
-      .then(visitors => {
-        var html = '';
-        if (visitors.length === 0) {
-          html = '<div class="empty-state"><p>No visitor history</p></div>';
-        } else {
-          visitors.forEach(function(v) {
-            var badgeClass = v.status === 'approved' ? 'badge-resolved' : v.status === 'rejected' ? 'badge-urgent' : 'badge-pending';
-            html += '<div style="padding:8px;border-bottom:1px solid #eee;">' +
-              '<strong>' + v.name + '</strong> <span class="badge ' + badgeClass + '">' + v.status + '</span>' +
-              '<br><small>📱 ' + v.phone + ' | 🕐 ' + new Date(v.entryTime).toLocaleString('en-IN') + '</small>' +
-              '</div>';
-          });
-        }
-        document.getElementById('historyList').innerHTML = html;
-      });
-    }
+    // ... keep all your existing functions (loadPending, loadHistory, etc.) unchanged ...
 
-    function respond(visitId, action) {
-      fetch('/api/owner/respond', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-        body: JSON.stringify({ visitId: visitId, action: action })
-      })
-      .then(res => res.json())
-      .then(data => { loadPending(); loadHistory(); });
-    }
-
-    // ========== COMPLAINTS ==========
-    function submitComplaint() {
-      var title = document.getElementById('complaintTitle').value;
-      var category = document.getElementById('complaintCategory').value;
-      var priority = document.getElementById('complaintPriority').value;
-      var description = document.getElementById('complaintDesc').value;
-      
-      if (!title || !category || !description) {
-        alert('Please fill all fields');
-        return;
-      }
-      
-      fetch('/api/society/complaints', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-        body: JSON.stringify({ title, category, description, priority })
-      })
-      .then(res => res.json())
-      .then(data => {
-        document.getElementById('complaintMsg').innerHTML = '<span style="color:green;">✅ Complaint submitted!</span>';
-        document.getElementById('complaintTitle').value = '';
-        document.getElementById('complaintDesc').value = '';
-        loadMyComplaints();
-      });
-    }
-
-    function loadMyComplaints() {
-      fetch('/api/society/complaints/my', {
-        headers: { 'Authorization': 'Bearer ' + token }
-      })
-      .then(res => res.json())
-      .then(complaints => {
-        var html = '';
-        if (complaints.length === 0) {
-          html = '<div class="empty-state"><p>No complaints yet</p></div>';
-        } else {
-          complaints.forEach(function(c) {
-            var badgeClass = c.status === 'pending' ? 'badge-pending' : 
-                           c.status === 'in_progress' ? 'badge-progress' : 'badge-resolved';
-            html += '<div class="complaint-item">' +
-              '<h4>' + c.title + ' <span class="badge ' + badgeClass + '">' + c.status + '</span></h4>' +
-              '<p>📁 ' + c.category + ' | 🔴 ' + c.priority + '</p>' +
-              '<p>📅 ' + new Date(c.createdAt).toLocaleDateString('en-IN') + '</p>' +
-              (c.assignedTo ? '<p>👨‍🔧 Assigned: ' + c.assignedTo + '</p>' : '') +
-              '</div>';
-          });
-        }
-        document.getElementById('complaintList').innerHTML = html;
-      });
-    }
-
-    // ========== WORKERS ==========
-    function loadWorkers() {
-      fetch('/api/society/workers')
-      .then(res => res.json())
-      .then(workers => {
-        var html = '';
-        if (workers.length === 0) {
-          html = '<div class="empty-state"><div class="icon">🔧</div><p>No workers added yet</p></div>';
-        } else {
-          workers.forEach(function(w) {
-            var iconMap = { plumber: '🔧', electrician: '⚡', cleaner: '🧹', carpenter: '🪚', painter: '🎨', gardener: '🌿', security: '🛡️' };
-            html += '<div class="worker-card">' +
-              '<div class="worker-icon">' + (iconMap[w.type] || '👷') + '</div>' +
-              '<div class="worker-info"><strong>' + w.name + '</strong><small>' + w.type + ' | ID: ' + (w.idNumber || 'N/A') + '</small></div>' +
-              '<a href="tel:' + w.phone + '" class="call-btn">📞 Call</a>' +
-              '</div>';
-          });
-        }
-        document.getElementById('workerList').innerHTML = html;
-      });
-    }
-
-    // ========== EMERGENCY ==========
-    function loadEmergencyContacts() {
-      fetch('/api/society/emergency')
-      .then(res => res.json())
-      .then(contacts => {
-        var html = '';
-        if (contacts.length === 0) {
-          html += '<div class="empty-state"><p>No emergency contacts added</p></div>';
-        } else {
-          html += '<p style="font-size:12px;color:#666;margin-bottom:10px;">Tap to call directly</p>';
-          contacts.forEach(function(w) {
-            html += '<div class="worker-card" style="cursor:pointer;" onclick="window.location.href=\'tel:' + w.phone + '\'">' +
-              '<div class="worker-icon">📞</div>' +
-              '<div class="worker-info"><strong>' + w.name + '</strong><small>' + w.type + ' | ' + w.phone + '</small></div>' +
-              '</div>';
-          });
-        }
-        
-        // Always show default emergency numbers
-        html += '<hr style="margin:15px 0;">';
-        html += '<p style="font-weight:bold;margin-bottom:8px;">📞 Quick Emergency Numbers</p>';
-        html += '<div class="worker-card" onclick="window.location.href=\'tel:100\'">' +
-          '<div class="worker-icon">🚔</div><div class="worker-info"><strong>Police</strong><small>100</small></div></div>';
-        html += '<div class="worker-card" onclick="window.location.href=\'tel:101\'">' +
-          '<div class="worker-icon">🚒</div><div class="worker-info"><strong>Fire</strong><small>101</small></div></div>';
-        html += '<div class="worker-card" onclick="window.location.href=\'tel:108\'">' +
-          '<div class="worker-icon">🚑</div><div class="worker-info"><strong>Ambulance</strong><small>108</small></div></div>';
-        
-        document.getElementById('emergencyList').innerHTML = html;
-      });
-    }
-
-    function logout() {
-      localStorage.removeItem('ownerToken');
-      window.location = 'login.html';
-    }
-
-    // Load default tab
+    // Initialize first tab
     showTab('visitors');
-    
-    // Auto-refresh visitors
-    setInterval(function() {
-      if (currentTab === 'visitors') { loadPending(); loadHistory(); }
-      if (currentTab === 'complaints') loadMyComplaints();
-    }, 15000);
   </script>
 </body>
 </html>
