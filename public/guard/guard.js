@@ -14,7 +14,7 @@ function loadRooms() {
       allRooms = rooms;
       renderFloors();
     })
-    .catch(() => { setTimeout(loadRooms, 10000); });
+    .catch(() => setTimeout(loadRooms, 10000));
 }
 
 function renderFloors() {
@@ -95,8 +95,17 @@ function checkinVisitor() {
   .then(res => res.json())
   .then(data => {
     if (data.visitId) {
-      visitorQueue.push({ visitId: data.visitId, name, phone, purpose, source, room: selectedRoomId, status: 'waiting', time: new Date().toLocaleTimeString() });
+      // Find room details for queue display
+      const room = allRooms.find(r => r._id === selectedRoomId);
+      visitorQueue.push({
+        visitId: data.visitId,
+        name, phone, purpose, source,
+        room: room ? 'Room ' + room.roomNumber + ' - ' + room.owner.name : '',
+        status: 'waiting',
+        time: new Date().toLocaleTimeString()
+      });
       socket.emit('joinRoom', data.visitId);
+      // Clear form
       document.getElementById('name').value = '';
       document.getElementById('phone').value = '';
       document.getElementById('purpose').value = '';
@@ -122,11 +131,62 @@ function switchTab(tab) {
   else if (tab === 'history') { document.querySelector('.tab:nth-child(3)').classList.add('active'); document.getElementById('historyTab').style.display = 'block'; loadHistory(); }
 }
 
-function updateQueueCount() { const waiting = visitorQueue.filter(v => v.status === 'waiting'); document.getElementById('queueCount').innerText = waiting.length; }
-function updateQueueDisplay() { /* same as before */ }
-function loadHistory() { /* same as before */ }
+function updateQueueCount() {
+  const waiting = visitorQueue.filter(v => v.status === 'waiting');
+  document.getElementById('queueCount').innerText = waiting.length;
+}
 
-socket.on('owner_response', data => { /* update queue */ });
+function updateQueueDisplay() {
+  const el = document.getElementById('queueList');
+  if (!el) return;
+  if (!visitorQueue.length) {
+    el.innerHTML = '<div class="empty-state">No visitors in queue</div>';
+    return;
+  }
+  let html = '';
+  visitorQueue.slice().reverse().forEach(v => {
+    const statusClass = v.status === 'waiting' ? 'status-waiting' : v.status === 'approved' ? 'status-approved' : 'status-rejected';
+    const statusText = v.status === 'waiting' ? '⏳ Waiting' : v.status === 'approved' ? '✅ Approved' : '❌ Rejected';
+    html += `<div class="visitor-queue-item">
+      <div class="queue-info">
+        <strong>${v.name}</strong>
+        <small>📱 ${v.phone} | 🎯 ${v.purpose} | 🏢 ${v.source}</small>
+        <small>🚪 ${v.room} | 🕐 ${v.time}</small>
+      </div>
+      <span class="visitor-status ${statusClass}">${statusText}</span>
+    </div>`;
+  });
+  el.innerHTML = html;
+  updateQueueCount();
+}
+
+function loadHistory() {
+  fetch('/api/guard/today', { headers: { 'Authorization': 'Bearer ' + token } })
+    .then(res => res.json())
+    .then(visitors => {
+      const el = document.getElementById('historyList');
+      if (!el) return;
+      if (!visitors.length) { el.innerHTML = '<div class="empty-state">No visitors checked in today</div>'; return; }
+      let html = '';
+      visitors.forEach(v => {
+        const statusColor = v.status === 'approved' ? 'green' : v.status === 'rejected' ? 'red' : 'orange';
+        html += `<div style="padding:10px;border-bottom:1px solid #eee;">
+          <strong>${v.name}</strong> <span style="color:${statusColor};">(${v.status})</span>
+          <br><small>📱 ${v.phone} | 🎯 ${v.purpose} | 🏢 ${v.source || 'N/A'} | 🕐 ${new Date(v.entryTime).toLocaleTimeString()}</small>
+        </div>`;
+      });
+      el.innerHTML = html;
+    });
+}
+
+socket.on('owner_response', data => {
+  visitorQueue.forEach(v => {
+    if (v.visitId === data.visitId) v.status = data.status;
+  });
+  updateQueueDisplay();
+  const visitor = visitorQueue.find(v => v.visitId === data.visitId);
+  if (visitor) alert(data.status === 'approved' ? '✅ APPROVED - Allow Entry' : '❌ REJECTED - Deny Entry');
+});
 
 // Initial load
 loadRooms();
