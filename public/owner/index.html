@@ -23,6 +23,11 @@
     .nav-item.active { color: #1a237e; font-weight: bold; }
     .nav-item .icon { font-size: 20px; display: block; }
     .empty-state { text-align: center; padding: 30px; color: #999; }
+    .visitor-item { display: flex; align-items: center; gap: 10px; padding: 10px; border-bottom: 1px solid #eee; }
+    .visitor-item img { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; }
+    .visitor-info { flex: 1; }
+    .visitor-info strong { font-size: 14px; }
+    .visitor-info small { font-size: 11px; color: #666; display: block; }
   </style>
 </head>
 <body>
@@ -47,12 +52,13 @@
         html = `<div class="card"><h3>⏳ Pending Visitors</h3><div id="pendingList">Loading...</div></div>
                 <div class="card"><h3>📋 Recent History</h3><div id="historyList">Loading...</div></div>`;
         document.getElementById('tabContent').innerHTML = html;
-        loadPending(); loadHistory();
+        loadPending();
+        loadHistory();
       } else if (tab === 'complaints') {
         html = `<div class="card"><h3>📝 Raise Complaint</h3>
           <input id="complaintTitle" placeholder="Title">
           <select id="complaintCategory"><option>Plumbing</option><option>Electrical</option><option>Cleaning</option></select>
-          <textarea id="complaintDesc" rows="3"></textarea>
+          <textarea id="complaintDesc" rows="3" placeholder="Describe issue"></textarea>
           <button class="btn-green" onclick="submitComplaint()">Submit</button>
           <div id="complaintMsg"></div>
         </div>
@@ -70,16 +76,132 @@
       }
     }
 
-    // Load functions (same as earlier but without workers/emergency)
-    function loadPending() { /* fetch pending */ }
-    function loadHistory() { /* fetch history */ }
-    function respond() { /* respond */ }
-    function submitComplaint() { /* submit */ }
-    function loadMyComplaints() { /* load */ }
-    function showProfile() { /* show profile */ }
-    function logout() { localStorage.removeItem('ownerToken'); window.location='login.html'; }
+    function loadPending() {
+      fetch('/api/owner/pending', { headers: { 'Authorization': 'Bearer ' + token } })
+        .then(res => res.json())
+        .then(visitors => {
+          const el = document.getElementById('pendingList');
+          if (!el) return;
+          if (!visitors.length) {
+            el.innerHTML = '<div class="empty-state"><p>No pending visitors</p></div>';
+            return;
+          }
+          let html = '';
+          visitors.forEach(v => {
+            html += `<div class="visitor-item">
+              ${v.photo ? `<img src="${v.photo}" alt="photo">` : '<div style="width:50px;height:50px;border-radius:50%;background:#e0e0e0;display:flex;align-items:center;justify-content:center;">👤</div>'}
+              <div class="visitor-info">
+                <strong>${v.name}</strong>
+                <small>📱 ${v.phone} | 🎯 ${v.purpose}</small>
+                <small>🏢 ${v.source || 'N/A'} | 🕐 ${new Date(v.entryTime).toLocaleString('en-IN')}</small>
+              </div>
+              <button class="btn-green" style="width:auto;padding:6px 12px;" onclick="respond('${v._id}','approve')">✓</button>
+              <button class="btn-red" style="width:auto;padding:6px 12px;" onclick="respond('${v._id}','reject')">✕</button>
+            </div>`;
+          });
+          el.innerHTML = html;
+        })
+        .catch(err => console.error(err));
+    }
 
+    function loadHistory() {
+      fetch('/api/owner/history', { headers: { 'Authorization': 'Bearer ' + token } })
+        .then(res => res.json())
+        .then(visitors => {
+          const el = document.getElementById('historyList');
+          if (!el) return;
+          if (!visitors.length) {
+            el.innerHTML = '<div class="empty-state"><p>No history yet</p></div>';
+            return;
+          }
+          let html = '';
+          visitors.forEach(v => {
+            const badgeClass = v.status === 'approved' ? 'badge-resolved' : v.status === 'rejected' ? 'badge-urgent' : 'badge-pending';
+            html += `<div class="visitor-item">
+              <div class="visitor-info">
+                <strong>${v.name}</strong> <span class="badge ${badgeClass}">${v.status}</span>
+                <small>📱 ${v.phone} | 🕐 ${new Date(v.entryTime).toLocaleString('en-IN')}</small>
+              </div>
+            </div>`;
+          });
+          el.innerHTML = html;
+        });
+    }
+
+    function respond(visitId, action) {
+      fetch('/api/owner/respond', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ visitId, action })
+      })
+      .then(res => res.json())
+      .then(() => { loadPending(); loadHistory(); });
+    }
+
+    function submitComplaint() {
+      const title = document.getElementById('complaintTitle').value;
+      const category = document.getElementById('complaintCategory').value;
+      const description = document.getElementById('complaintDesc').value;
+      if (!title || !description) { alert('Fill title and description'); return; }
+      fetch('/api/society/complaints', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ title, category, description })
+      })
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById('complaintMsg').innerHTML = '<span style="color:green;">✅ Submitted!</span>';
+        loadMyComplaints();
+      });
+    }
+
+    function loadMyComplaints() {
+      fetch('/api/society/complaints/my', { headers: { 'Authorization': 'Bearer ' + token } })
+        .then(res => res.json())
+        .then(complaints => {
+          const el = document.getElementById('complaintList');
+          if (!el) return;
+          if (!complaints.length) { el.innerHTML = '<p>No complaints</p>'; return; }
+          let html = '';
+          complaints.forEach(c => {
+            const badge = c.status === 'pending' ? 'badge-pending' : c.status === 'in_progress' ? 'badge-resolved' : 'badge-urgent';
+            html += `<div style="padding:8px;border-bottom:1px solid #eee;">
+              <strong>${c.title}</strong> <span class="badge ${badge}">${c.status}</span>
+              <br><small>${c.category} | ${new Date(c.createdAt).toLocaleDateString('en-IN')}</small>
+            </div>`;
+          });
+          el.innerHTML = html;
+        });
+    }
+
+    function showProfile() {
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        document.getElementById('profileInfo').innerHTML = `
+          <div style="text-align:center;">
+            <div style="font-size:50px;">👤</div>
+            <h4>${payload.name || 'Owner'}</h4>
+            <p>${payload.email || ''}</p>
+            <p style="font-size:12px;color:#999;">Role: ${payload.role || 'owner'}</p>
+          </div>`;
+      } catch(e) {
+        document.getElementById('profileInfo').innerHTML = '<p>Could not load profile</p>';
+      }
+    }
+
+    function logout() {
+      localStorage.removeItem('ownerToken');
+      window.location = 'login.html';
+    }
+
+    // Load initial tab
     showTab('visitors');
+    // Auto refresh every 10 seconds
+    setInterval(() => {
+      const active = document.querySelector('.nav-item.active');
+      if (active && active.dataset.tab === 'visitors') { loadPending(); loadHistory(); }
+      if (active && active.dataset.tab === 'complaints') loadMyComplaints();
+    }, 10000);
   </script>
 </body>
 </html>
