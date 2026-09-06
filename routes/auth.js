@@ -155,12 +155,32 @@ router.post('/change-password', async (req, res) => {
 // Forgot Password - Send OTP via Email
 router.post('/forgot-password', async (req, res) => {
   const { email } = req.body;
-  
   try {
     const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(404).json({ error: 'No account found with this email' });
-    }
+    if (!user) return res.status(404).json({ error: 'No account found with this email' });
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    user.resetOTP = otp;
+    user.resetOTPExpires = new Date(Date.now() + 10 * 60 * 1000);
+    await user.save();
+
+    const msg = {
+      to: email,
+      from: 'somnathmoota4@gmail.com',  // Use your verified sender email
+      subject: 'Your Password Reset OTP',
+      text: `Your OTP is ${otp}. Valid for 10 minutes.`,
+      html: `<h3>Visitor App Password Reset</h3><p>Your OTP is <strong>${otp}</strong>. Valid for 10 minutes.</p>`
+    };
+
+    await sgMail.send(msg);
+    console.log(`OTP sent to ${email}`);
+
+    res.json({ message: 'OTP sent to your email.' });
+  } catch (err) {
+    console.error('Forgot password error:', err);
+    res.status(500).json({ error: 'Failed to send OTP. Please try again.' });
+  }
+});
     
     // Generate 6-digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
@@ -193,17 +213,19 @@ router.post('/forgot-password', async (req, res) => {
 // Reset Password with OTP
 router.post('/reset-password', async (req, res) => {
   const { email, otp, newPassword } = req.body;
-  
   try {
-    const user = await User.findOne({ 
-      email,
-      resetOTP: otp,
-      resetOTPExpires: { $gt: new Date() }
-    });
-    
-    if (!user) {
-      return res.status(400).json({ error: 'Invalid or expired OTP' });
-    }
+    const user = await User.findOne({ email, resetOTP: otp, resetOTPExpires: { $gt: new Date() } });
+    if (!user) return res.status(400).json({ error: 'Invalid or expired OTP' });
+
+    user.password = newPassword;
+    user.resetOTP = undefined;
+    user.resetOTPExpires = undefined;
+    await user.save();
+    res.json({ message: 'Password reset successful' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
     
     // Set new password
     user.password = newPassword;
