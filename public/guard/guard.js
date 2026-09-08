@@ -95,7 +95,6 @@ function checkinVisitor() {
   .then(res => res.json())
   .then(data => {
     if (data.visitId) {
-      // Find room details for queue display
       const room = allRooms.find(r => r._id === selectedRoomId);
       visitorQueue.push({
         visitId: data.visitId,
@@ -105,7 +104,6 @@ function checkinVisitor() {
         time: new Date().toLocaleTimeString()
       });
       socket.emit('joinRoom', data.visitId);
-      // Clear form
       document.getElementById('name').value = '';
       document.getElementById('phone').value = '';
       document.getElementById('purpose').value = '';
@@ -126,9 +124,11 @@ function switchTab(tab) {
   document.getElementById('checkinTab').style.display = 'none';
   document.getElementById('queueTab').style.display = 'none';
   document.getElementById('historyTab').style.display = 'none';
+  document.getElementById('profileTab').style.display = 'none';
   if (tab === 'checkin') { document.querySelector('.tab:nth-child(1)').classList.add('active'); document.getElementById('checkinTab').style.display = 'block'; }
   else if (tab === 'queue') { document.querySelector('.tab:nth-child(2)').classList.add('active'); document.getElementById('queueTab').style.display = 'block'; updateQueueDisplay(); }
   else if (tab === 'history') { document.querySelector('.tab:nth-child(3)').classList.add('active'); document.getElementById('historyTab').style.display = 'block'; loadHistory(); }
+  else if (tab === 'profile') { document.querySelector('.tab:nth-child(4)').classList.add('active'); document.getElementById('profileTab').style.display = 'block'; loadGuardProfile(); }
 }
 
 function updateQueueCount() {
@@ -139,10 +139,7 @@ function updateQueueCount() {
 function updateQueueDisplay() {
   const el = document.getElementById('queueList');
   if (!el) return;
-  if (!visitorQueue.length) {
-    el.innerHTML = '<div class="empty-state">No visitors in queue</div>';
-    return;
-  }
+  if (!visitorQueue.length) { el.innerHTML = '<div class="empty-state">No visitors in queue</div>'; return; }
   let html = '';
   visitorQueue.slice().reverse().forEach(v => {
     const statusClass = v.status === 'waiting' ? 'status-waiting' : v.status === 'approved' ? 'status-approved' : 'status-rejected';
@@ -179,14 +176,31 @@ function loadHistory() {
     });
 }
 
+function loadGuardProfile() {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    document.getElementById('guardProfile').innerHTML = `
+      <div style="text-align:center;">
+        <div style="font-size:50px;">🛡️</div>
+        <h4>${payload.name || 'Guard'}</h4>
+        <p style="color:#666;">${payload.email || ''}</p>
+        <p style="color:#999;">Role: Guard</p>
+      </div>`;
+  } catch(e) {
+    document.getElementById('guardProfile').innerHTML = '<p>Error loading profile</p>';
+  }
+}
+
+function logout() {
+  localStorage.removeItem('guardToken');
+  window.location = 'login.html';
+}
+
 socket.on('owner_response', data => {
-  visitorQueue.forEach(v => {
-    if (v.visitId === data.visitId) v.status = data.status;
-  });
+  visitorQueue.forEach(v => { if (v.visitId === data.visitId) v.status = data.status; });
   updateQueueDisplay();
   const visitor = visitorQueue.find(v => v.visitId === data.visitId);
   if (visitor) alert(data.status === 'approved' ? '✅ APPROVED - Allow Entry' : '❌ REJECTED - Deny Entry');
 });
 
-// Initial load
 loadRooms();
