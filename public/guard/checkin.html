@@ -43,6 +43,7 @@
     <div class="tab active" onclick="switchTab('checkin')">✍️ Check-in</div>
     <div class="tab" onclick="switchTab('queue')">📊 Queue <span class="count-badge" id="queueCount">0</span></div>
     <div class="tab" onclick="switchTab('history')">📜 History</div>
+    <div class="tab" onclick="switchTab('profile')">👤 Me</div>
   </div>
 
   <div class="container">
@@ -102,6 +103,16 @@
     <!-- HISTORY TAB -->
     <div id="historyTab" style="display:none;">
       <div class="card"><h3>📜 Past Check-ins</h3><div id="historyList"><p>Loading...</p></div></div>
+    </div>
+
+    <!-- PROFILE TAB -->
+    <div id="profileTab" style="display:none;">
+      <div class="card">
+        <h3>👤 My Profile</h3>
+        <div id="guardProfile">Loading...</div>
+        <button onclick="window.location.href='/change-password.html'" style="background:#1565c0;color:white;padding:12px;border:none;border-radius:8px;width:100%;margin-top:10px;">🔐 Change Password</button>
+        <button onclick="logout()" style="background:#c62828;color:white;margin-top:10px;">🚪 Logout</button>
+      </div>
     </div>
   </div>
 
