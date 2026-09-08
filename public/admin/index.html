@@ -9,8 +9,7 @@
     h2 { text-align: center; color: #1a237e; }
     input { width: 100%; padding: 12px; margin: 10px 0; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px; box-sizing: border-box; }
     button { width: 100%; padding: 14px; background: #1a237e; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; }
-    button:hover { background: #283593; }
-    .error { color: red; text-align: center; margin-top: 10px; }
+    .error { color: red; text-align: center; margin-top: 10px; display: none; }
   </style>
 </head>
 <body>
@@ -21,36 +20,39 @@
     <button onclick="login()">Login</button>
     <p class="error" id="error"></p>
   </div>
-<script>
+
+  <script>
     function login() {
-      var email = document.getElementById('email').value;
-      var password = document.getElementById('password').value;
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      const errorEl = document.getElementById('error');
+      errorEl.style.display = 'none';
 
       fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email, password: password })
+        body: JSON.stringify({ email, password })
       })
-      .then(function(response) { return response.json(); })
-      .then(function(data) {
+      .then(res => res.json())
+      .then(data => {
         if (data.token) {
-          // SAVE TOKEN FIRST
-          localStorage.setItem('adminToken', data.token);
-          localStorage.setItem('adminUser', JSON.stringify(data.user));
-          
-          // Small delay then redirect
-          setTimeout(function() {
+          if (data.user.role === 'super_admin') {
+            localStorage.setItem('adminToken', data.token);
             window.location.href = '/admin/dashboard.html';
-          }, 500);
+          } else {
+            errorEl.innerText = 'Access denied. Admin only.';
+            errorEl.style.display = 'block';
+          }
         } else {
-          document.getElementById('error').innerText = data.error || 'Login failed';
+          errorEl.innerText = data.error || 'Login failed';
+          errorEl.style.display = 'block';
         }
       })
-      .catch(function() {
-        document.getElementById('error').innerText = 'Connection error';
+      .catch(() => {
+        errorEl.innerText = 'Connection error';
+        errorEl.style.display = 'block';
       });
     }
-  <a href="/forgot-password.html?type=admin" style="display:block;text-align:center;margin-top:10px;">Forgot Password?</a>
-</script>
+  </script>
 </body>
 </html>
