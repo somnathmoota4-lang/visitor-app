@@ -5,22 +5,27 @@
   <title>Admin Dashboard</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; min-height: 100vh; padding: 15px; }
-    .header { background: linear-gradient(135deg, #1a237e, #283593); color: white; padding: 20px; border-radius: 15px; text-align: center; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; padding: 15px; }
+    .header { background: linear-gradient(135deg, #1a237e, #283593); color: white; padding: 20px; border-radius: 15px; text-align: center; margin-bottom: 20px; }
     .header h2 { font-size: 22px; }
     .card { background: white; padding: 20px; margin: 15px 0; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
     .card h3 { color: #1a237e; margin-bottom: 15px; font-size: 18px; border-bottom: 2px solid #e8eaf6; padding-bottom: 8px; }
-    input { width: 100%; padding: 12px; margin: 8px 0; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 15px; }
-    input:focus { border-color: #1a237e; outline: none; }
-    button { width: 100%; padding: 14px; background: #1a237e; color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+    input, select { width: 100%; padding: 12px; margin: 8px 0; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 15px; }
+    button { width: 100%; padding: 12px; background: #1a237e; color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
     button.green { background: #2e7d32; }
+    button.red { background: #c62828; }
     .msg { padding: 10px; border-radius: 8px; margin-top: 10px; font-size: 14px; display: none; }
     .msg.success { background: #e8f5e9; color: #2e7d32; display: block; }
     .msg.error { background: #ffebee; color: #c62828; display: block; }
-    .chip-scroll { display: flex; overflow-x: auto; gap: 10px; padding: 10px 0; scrollbar-width: thin; }
-    .chip { flex: 0 0 auto; padding: 10px 20px; background: #e8eaf6; border: 2px solid #c5cae9; border-radius: 25px; font-size: 14px; font-weight: bold; color: #1a237e; cursor: pointer; transition: all 0.2s; }
+    .chip-scroll { display: flex; overflow-x: auto; gap: 10px; padding: 10px 0; }
+    .chip { flex: 0 0 auto; padding: 10px 20px; background: #e8eaf6; border: 2px solid #c5cae9; border-radius: 25px; font-size: 14px; font-weight: bold; color: #1a237e; cursor: pointer; }
     .chip.selected { background: #1a237e; color: white; border-color: #1a237e; }
-    .label { font-weight: bold; margin: 12px 0 5px; color: #333; }
+    .label { font-weight: bold; margin: 10px 0 5px; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { padding: 8px; border: 1px solid #ddd; text-align: left; }
+    th { background: #f0f0f0; }
+    .edit-input { width: 100%; padding: 6px; margin: 2px 0; }
+    .action-btn { padding: 5px 10px; font-size: 13px; width: auto; }
   </style>
 </head>
 <body>
@@ -29,23 +34,22 @@
     <button onclick="logout()" style="background:white;color:#1a237e;width:auto;padding:8px 20px;margin-top:10px;border:none;border-radius:6px;font-weight:bold;">Logout</button>
   </div>
 
+  <!-- Create Owner -->
   <div class="card">
     <h3>👤 Create Owner</h3>
     <input type="text" id="ownerName" placeholder="Owner Full Name">
     <input type="email" id="ownerEmail" placeholder="Owner Email">
     <input type="tel" id="ownerPhone" placeholder="Owner Phone">
     <input type="password" id="ownerPassword" placeholder="Password">
-
     <div class="label">Select Floor</div>
     <div id="floorChips" class="chip-scroll"></div>
-
     <div class="label">Select Room</div>
     <div id="roomChips" class="chip-scroll"></div>
-
     <button class="green" onclick="createOwner()">✅ Create Owner</button>
     <div class="msg" id="ownerMsg"></div>
   </div>
 
+  <!-- Create Guard -->
   <div class="card">
     <h3>🛡️ Create Guard</h3>
     <input type="text" id="guardName" placeholder="Guard Full Name">
@@ -53,6 +57,12 @@
     <input type="password" id="guardPassword" placeholder="Password">
     <button onclick="createGuard()">✅ Create Guard</button>
     <div class="msg" id="guardMsg"></div>
+  </div>
+
+  <!-- Manage Owners -->
+  <div class="card">
+    <h3>👥 Manage Owners</h3>
+    <div id="ownerList">Loading...</div>
   </div>
 
   <script>
@@ -69,8 +79,8 @@
         .then(rooms => {
           allRooms = rooms;
           renderFloors();
-        })
-        .catch(err => console.error('Error:', err));
+          loadOwners();
+        });
     }
 
     function renderFloors() {
@@ -124,12 +134,9 @@
       const phone = document.getElementById('ownerPhone').value;
       const password = document.getElementById('ownerPassword').value;
       const msg = document.getElementById('ownerMsg');
-
       if (!name || !email || !password || !selectedRoomId) {
-        msg.className = 'msg error'; msg.innerText = 'Please fill all fields and select a room.';
-        return;
+        msg.className = 'msg error'; msg.innerText = 'Fill all fields and select room'; return;
       }
-
       fetch('/api/admin/owners/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
@@ -137,10 +144,9 @@
       })
       .then(res => res.json())
       .then(data => {
-        if (data.error) {
-          msg.className = 'msg error'; msg.innerText = data.error;
-        } else {
-          msg.className = 'msg success'; msg.innerText = '✅ Owner created!';
+        if (data.error) { msg.className = 'msg error'; msg.innerText = data.error; }
+        else {
+          msg.className = 'msg success'; msg.innerText = 'Owner created!';
           document.getElementById('ownerName').value = '';
           document.getElementById('ownerEmail').value = '';
           document.getElementById('ownerPhone').value = '';
@@ -148,8 +154,7 @@
           selectedFloor = null; selectedRoomId = null;
           loadRooms();
         }
-      })
-      .catch(() => { msg.className = 'msg error'; msg.innerText = 'Connection error'; });
+      });
     }
 
     function createGuard() {
@@ -157,10 +162,7 @@
       const email = document.getElementById('guardEmail').value;
       const password = document.getElementById('guardPassword').value;
       const msg = document.getElementById('guardMsg');
-      if (!name || !email || !password) {
-        msg.className = 'msg error'; msg.innerText = 'Fill all fields.';
-        return;
-      }
+      if (!name || !email || !password) { msg.className = 'msg error'; msg.innerText = 'Fill all fields'; return; }
       fetch('/api/admin/guards', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
@@ -170,13 +172,64 @@
       .then(data => {
         if (data.error) { msg.className = 'msg error'; msg.innerText = data.error; }
         else {
-          msg.className = 'msg success'; msg.innerText = '✅ Guard created!';
+          msg.className = 'msg success'; msg.innerText = 'Guard created!';
           document.getElementById('guardName').value = '';
           document.getElementById('guardEmail').value = '';
           document.getElementById('guardPassword').value = '';
         }
+      });
+    }
+
+    function loadOwners() {
+      fetch('/api/admin/owners', { headers: { 'Authorization': 'Bearer ' + token } })
+        .then(res => res.json())
+        .then(owners => {
+          const container = document.getElementById('ownerList');
+          if (!owners.length) { container.innerHTML = '<p>No owners yet</p>'; return; }
+          let html = '<table><tr><th>Name</th><th>Email</th><th>Phone</th><th>Room</th><th>Actions</th></tr>';
+          owners.forEach(o => {
+            html += `<tr>
+              <td><input class="edit-input" id="editName-${o._id}" value="${o.name}"></td>
+              <td><input class="edit-input" id="editEmail-${o._id}" value="${o.email}"></td>
+              <td><input class="edit-input" id="editPhone-${o._id}" value="${o.phone || ''}"></td>
+              <td>${o.room ? o.room.roomNumber : 'No Room'}</td>
+              <td>
+                <button class="action-btn green" onclick="editOwner('${o._id}')">💾 Save</button>
+                <button class="action-btn red" onclick="removeOwner('${o._id}')">🗑️ Remove</button>
+              </td>
+            </tr>`;
+          });
+          html += '</table>';
+          container.innerHTML = html;
+        });
+    }
+
+    function editOwner(id) {
+      const name = document.getElementById('editName-' + id).value;
+      const email = document.getElementById('editEmail-' + id).value;
+      const phone = document.getElementById('editPhone-' + id).value;
+      fetch('/api/admin/owners/' + id, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ name, email, phone })
       })
-      .catch(() => { msg.className = 'msg error'; msg.innerText = 'Connection error'; });
+      .then(res => res.json())
+      .then(data => {
+        if (data.error) alert(data.error); else { alert('Owner updated'); loadOwners(); }
+      });
+    }
+
+    function removeOwner(id) {
+      if (!confirm('Remove this owner and free the room?')) return;
+      fetch('/api/admin/owners/' + id, {
+        method: 'DELETE',
+        headers: { 'Authorization': 'Bearer ' + token }
+      })
+      .then(res => res.json())
+      .then(data => {
+        alert(data.message || 'Owner removed');
+        loadRooms(); // refresh rooms and owners
+      });
     }
 
     function logout() {
