@@ -4,146 +4,57 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Guard Login</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { 
-      font-family: 'Segoe UI', Arial, sans-serif; 
-      background: linear-gradient(135deg, #1a237e, #283593); 
-      min-height: 100vh; 
-      display: flex; 
-      align-items: center; 
-      justify-content: center; 
-      padding: 20px;
-    }
-    .box { 
-      background: white; 
-      padding: 30px; 
-      border-radius: 15px; 
-      box-shadow: 0 10px 40px rgba(0,0,0,0.3); 
-      width: 100%; 
-      max-width: 380px; 
-    }
-    h2 { text-align: center; color: #1a237e; margin-bottom: 5px; }
-    p { text-align: center; color: #666; margin-bottom: 20px; font-size: 14px; }
-    input { 
-      width: 100%; 
-      padding: 14px; 
-      margin: 10px 0; 
-      border: 2px solid #e0e0e0; 
-      border-radius: 8px; 
-      font-size: 16px; 
-    }
-    input:focus { border-color: #1a237e; outline: none; }
-    button { 
-      width: 100%; 
-      padding: 15px; 
-      background: #1a237e; 
-      color: white; 
-      border: none; 
-      border-radius: 8px; 
-      font-size: 18px; 
-      font-weight: bold; 
-      cursor: pointer; 
-      margin-top: 15px;
-    }
-    button:active { transform: scale(0.98); }
-    .error { 
-      color: #c62828; 
-      text-align: center; 
-      margin-top: 10px; 
-      font-size: 14px;
-      display: none;
-    }
-    .back-link {
-      display: block;
-      text-align: center;
-      margin-top: 15px;
-      color: #1a237e;
-      text-decoration: none;
-      font-size: 14px;
-    }
+    body { font-family: Arial; background: #f0f2f5; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+    .box { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 350px; }
+    h2 { text-align: center; color: #1a237e; }
+    input { width: 100%; padding: 12px; margin: 10px 0; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px; box-sizing: border-box; }
+    button { width: 100%; padding: 14px; background: #1a237e; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; }
+    .error { color: red; text-align: center; margin-top: 10px; display: none; }
+    .forgot { display: block; text-align: center; margin-top: 15px; color: #1a237e; text-decoration: none; }
   </style>
 </head>
 <body>
   <div class="box">
     <h2>🛡️ Guard Login</h2>
-    <p>Security Personnel Access</p>
-    
-    <input type="email" id="email" placeholder="Enter your email" required>
-    <input type="password" id="password" placeholder="Enter your password" required>
-    <button type="button" id="loginBtn" onclick="login()">🔐 Login</button>
-    
+    <input type="email" id="email" placeholder="Email">
+    <input type="password" id="password" placeholder="Password">
+    <button onclick="login()">Login</button>
     <p class="error" id="error"></p>
-    
-    <a class="back-link" href="/">← Back to Home</a>
+    <a class="forgot" href="/forgot-password.html?type=guard">Forgot Password?</a>
   </div>
 
   <script>
     function login() {
-      var email = document.getElementById('email').value;
-      var password = document.getElementById('password').value;
-      var errorEl = document.getElementById('error');
-      var btn = document.getElementById('loginBtn');
-
-      // Clear old error
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      const errorEl = document.getElementById('error');
       errorEl.style.display = 'none';
-
-      // Validate
-      if (!email || !password) {
-        errorEl.innerText = 'Please enter email and password';
-        errorEl.style.display = 'block';
-        return;
-      }
-
-      // Disable button during login
-      btn.disabled = true;
-      btn.innerText = '⏳ Logging in...';
 
       fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email, password: password })
+        body: JSON.stringify({ email, password })
       })
-      .then(function(response) { 
-        return response.json(); 
-      })
-      .then(function(data) {
+      .then(res => res.json())
+      .then(data => {
         if (data.token) {
-          // Save token
-          localStorage.setItem('guardToken', data.token);
-          localStorage.setItem('guardUser', JSON.stringify(data.user));
-          
-          // Check if role is guard
           if (data.user.role === 'guard') {
+            localStorage.setItem('guardToken', data.token);
             window.location.href = 'checkin.html';
           } else {
-            errorEl.innerText = '❌ Access denied! This is guard login only.';
+            errorEl.innerText = 'Access denied. Guard only.';
             errorEl.style.display = 'block';
-            btn.disabled = false;
-            btn.innerText = '🔐 Login';
           }
         } else {
-          errorEl.innerText = '❌ ' + (data.error || 'Invalid email or password');
+          errorEl.innerText = data.error || 'Login failed';
           errorEl.style.display = 'block';
-          btn.disabled = false;
-          btn.innerText = '🔐 Login';
         }
       })
-      .catch(function(err) {
-        console.error('Login error:', err);
-        errorEl.innerText = '❌ Connection error. Please try again.';
+      .catch(() => {
+        errorEl.innerText = 'Connection error';
         errorEl.style.display = 'block';
-        btn.disabled = false;
-        btn.innerText = '🔐 Login';
       });
     }
-
-    // Allow Enter key to login
-    document.getElementById('password').addEventListener('keypress', function(e) {
-      if (e.key === 'Enter') {
-        login();
-      }
-    });
-    <a href="/forgot-password.html?type=guard" style="display:block;text-align:center;margin-top:10px;">Forgot Password?</a>
   </script>
 </body>
 </html>
