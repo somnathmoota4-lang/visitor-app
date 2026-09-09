@@ -204,20 +204,28 @@
         });
     }
 
-    function editOwner(id) {
-      const name = document.getElementById('editName-' + id).value;
-      const email = document.getElementById('editEmail-' + id).value;
-      const phone = document.getElementById('editPhone-' + id).value;
-      fetch('/api/admin/owners/' + id, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-        body: JSON.stringify({ name, email, phone })
-      })
-      .then(res => res.json())
-      .then(data => {
-        if (data.error) alert(data.error); else { alert('Owner updated'); loadOwners(); }
-      });
+    function removeOwner(id) {
+  if (!confirm('Remove this owner and free the room?')) return;
+  fetch('/api/admin/owners/' + id, {
+    method: 'DELETE',
+    headers: { 'Authorization': 'Bearer ' + token }
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.message) {
+      alert(data.message);
+      // Refresh both rooms and owners immediately
+      loadRooms();
+      setTimeout(() => loadOwners(), 500); // extra refresh to be safe
+    } else {
+      alert(data.error || 'Error removing owner');
     }
+  })
+  .catch(err => {
+    alert('Error removing owner');
+    console.error(err);
+  });
+}
 
     function removeOwner(id) {
       if (!confirm('Remove this owner and free the room?')) return;
