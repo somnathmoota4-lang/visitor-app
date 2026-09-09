@@ -125,4 +125,23 @@ router.get('/visitors', async (req, res) => {
   }
 });
 
+// Repair owner-room links (sync user.room based on rooms.owner)
+router.get('/fix-owners', async (req, res) => {
+  try {
+    const rooms = await Room.find({ owner: { $ne: null } });
+    let fixed = 0;
+    for (const room of rooms) {
+      const owner = await User.findById(room.owner);
+      if (owner && owner.role === 'owner' && !owner.room) {
+        owner.room = room._id;
+        await owner.save();
+        fixed++;
+      }
+    }
+    res.json({ message: `Repaired ${fixed} owner-room links` });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
