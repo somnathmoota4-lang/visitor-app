@@ -46,12 +46,13 @@ router.post('/owners/create', async (req, res) => {
   }
 });
 
-// Get all owners
+// Get all active owners
 router.get('/owners', async (req, res) => {
   try {
-    const owners = await User.find({ role: 'owner' }).populate('room', 'roomNumber floor');
+    const owners = await User.find({ role: 'owner', status: 'approved' }).populate('room', 'roomNumber floor');
     res.json(owners);
   } catch (err) {
+    console.error('Get owners error:', err);
     res.status(500).json({ error: err.message });
   }
 });
