@@ -73,15 +73,20 @@
     let selectedFloor = null;
     let selectedRoomId = null;
 
-    function loadRooms() {
-      fetch('/api/admin/rooms', { headers: { 'Authorization': 'Bearer ' + token } })
+   function loadRooms() {
+  fetch('/api/admin/rooms', { headers: { 'Authorization': 'Bearer ' + token } })
+    .then(res => res.json())
+    .then(rooms => {
+      allRooms = rooms;
+      renderFloors();
+      // Repair any broken owner-room links silently
+      fetch('/api/admin/fix-owners', { headers: { 'Authorization': 'Bearer ' + token } })
         .then(res => res.json())
-        .then(rooms => {
-          allRooms = rooms;
-          renderFloors();
-          loadOwners();
-        });
-    }
+        .then(() => loadOwners())
+        .catch(() => loadOwners());
+    })
+    .catch(err => console.error('Error loading rooms:', err));
+}
 
     function renderFloors() {
       const floors = [...new Set(allRooms.map(r => r.floor))].sort((a,b) => a-b);
