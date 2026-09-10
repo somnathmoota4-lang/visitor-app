@@ -11,6 +11,7 @@
     .card { background: white; padding: 20px; margin: 15px 0; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
     .card h3 { color: #1a237e; margin-bottom: 15px; font-size: 18px; border-bottom: 2px solid #e8eaf6; padding-bottom: 8px; }
     input, select { width: 100%; padding: 12px; margin: 8px 0; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 15px; }
+    input:focus, select:focus { border-color: #1a237e; outline: none; }
     button { width: 100%; padding: 12px; background: #1a237e; color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
     button.green { background: #2e7d32; }
     button.red { background: #c62828; }
@@ -24,8 +25,10 @@
     table { width: 100%; border-collapse: collapse; font-size: 14px; }
     th, td { padding: 8px; border: 1px solid #ddd; text-align: left; }
     th { background: #f0f0f0; }
-    .edit-input { width: 100%; padding: 6px; margin: 2px 0; }
-    .action-btn { padding: 5px 10px; font-size: 13px; width: auto; }
+    .action-btn { cursor: pointer; font-weight: bold; border: none; padding: 5px 10px; border-radius: 5px; margin: 2px; font-size: 12px; }
+    .btn-edit { background: #1565c0; color: white; }
+    .btn-room { background: #f57c00; color: white; }
+    .btn-delete { background: #c62828; color: white; }
   </style>
 </head>
 <body>
@@ -73,20 +76,17 @@
     let selectedFloor = null;
     let selectedRoomId = null;
 
-   function loadRooms() {
-  fetch('/api/admin/rooms', { headers: { 'Authorization': 'Bearer ' + token } })
-    .then(res => res.json())
-    .then(rooms => {
-      allRooms = rooms;
-      renderFloors();
-      // Repair any broken owner-room links silently
-      fetch('/api/admin/fix-owners', { headers: { 'Authorization': 'Bearer ' + token } })
+    // ---------- LOAD ROOMS & OWNERS ----------
+    function loadRooms() {
+      fetch('/api/admin/rooms', { headers: { 'Authorization': 'Bearer ' + token } })
         .then(res => res.json())
-        .then(() => loadOwners())
-        .catch(() => loadOwners());
-    })
-    .catch(err => console.error('Error loading rooms:', err));
-}
+        .then(rooms => {
+          allRooms = rooms;
+          renderFloors();
+          loadOwners();
+        })
+        .catch(err => console.error('Error loading rooms:', err));
+    }
 
     function renderFloors() {
       const floors = [...new Set(allRooms.map(r => r.floor))].sort((a,b) => a-b);
@@ -133,6 +133,7 @@
       chip.classList.add('selected');
     }
 
+    // ---------- CREATE OWNER ----------
     function createOwner() {
       const name = document.getElementById('ownerName').value;
       const email = document.getElementById('ownerEmail').value;
@@ -162,6 +163,7 @@
       });
     }
 
+    // ---------- CREATE GUARD ----------
     function createGuard() {
       const name = document.getElementById('guardName').value;
       const email = document.getElementById('guardEmail').value;
@@ -185,6 +187,7 @@
       });
     }
 
+    // ---------- MANAGE OWNERS ----------
     function loadOwners() {
       fetch('/api/admin/owners', { headers: { 'Authorization': 'Bearer ' + token } })
         .then(res => res.json())
@@ -193,45 +196,73 @@
           if (!owners.length) { container.innerHTML = '<p>No owners yet</p>'; return; }
           let html = '<table><tr><th>Name</th><th>Email</th><th>Phone</th><th>Room</th><th>Actions</th></tr>';
           owners.forEach(o => {
+            const roomText = o.room ? o.room.roomNumber : 'No Room';
+            const roomStyle = o.room ? '' : 'style="color:#c62828;font-weight:bold;"';
             html += `<tr>
-              <td><input class="edit-input" id="editName-${o._id}" value="${o.name}"></td>
-              <td><input class="edit-input" id="editEmail-${o._id}" value="${o.email}"></td>
-              <td><input class="edit-input" id="editPhone-${o._id}" value="${o.phone || ''}"></td>
-              <td>${o.room ? o.room.roomNumber : 'No Room'}</td>
+              <td>${o.name}</td>
+              <td>${o.email}</td>
+              <td>${o.phone || '-'}</td>
+              <td ${roomStyle}>${roomText}</td>
               <td>
-                <button class="action-btn green" onclick="editOwner('${o._id}')">💾 Save</button>
-                <button class="action-btn red" onclick="removeOwner('${o._id}')">🗑️ Remove</button>
+                <button class="action-btn btn-edit" onclick="editOwner('${o._id}','${o.name}','${o.email}','${o.phone || ''}')">✏️ Edit</button>
+                <button class="action-btn btn-room" onclick="changeRoom('${o._id}')">🔁 Room</button>
+                <button class="action-btn btn-delete" onclick="removeOwner('${o._id}')">🗑️ Remove</button>
               </td>
             </tr>`;
           });
           html += '</table>';
           container.innerHTML = html;
-        });
+        })
+        .catch(err => console.error('Error loading owners:', err));
     }
 
-    function removeOwner(id) {
-  if (!confirm('Remove this owner and free the room?')) return;
-  fetch('/api/admin/owners/' + id, {
-    method: 'DELETE',
-    headers: { 'Authorization': 'Bearer ' + token }
-  })
-  .then(res => res.json())
-  .then(data => {
-    if (data.message) {
-      alert(data.message);
-      // Refresh both rooms and owners immediately
-      loadRooms();
-      setTimeout(() => loadOwners(), 500); // extra refresh to be safe
-    } else {
-      alert(data.error || 'Error removing owner');
-    }
-  })
-  .catch(err => {
-    alert('Error removing owner');
-    console.error(err);
-  });
-}
+    // ---------- EDIT OWNER DETAILS ----------
+    function editOwner(id, name, email, phone) {
+      const newName = prompt('Edit name:', name);
+      if (newName === null) return;
+      const newEmail = prompt('Edit email:', email);
+      if (newEmail === null) return;
+      const newPhone = prompt('Edit phone:', phone || '');
+      if (newPhone === null) return;
 
+      fetch('/api/admin/owners/' + id, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ name: newName, email: newEmail, phone: newPhone })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.error) alert(data.error);
+        else { alert('Owner updated'); loadOwners(); }
+      });
+    }
+
+    // ---------- CHANGE ROOM ----------
+    function changeRoom(id) {
+      const roomNumber = prompt('Enter new room number (e.g., 101):');
+      if (!roomNumber) return;
+
+      fetch('/api/admin/owners/' + id + '/room', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ roomNumber: roomNumber.trim() })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.error) {
+          alert(data.error);
+        } else {
+          alert(data.message);
+          loadRooms(); // refresh rooms and owners
+        }
+      })
+      .catch(err => {
+        alert('Error changing room');
+        console.error(err);
+      });
+    }
+
+    // ---------- REMOVE OWNER ----------
     function removeOwner(id) {
       if (!confirm('Remove this owner and free the room?')) return;
       fetch('/api/admin/owners/' + id, {
@@ -240,16 +271,26 @@
       })
       .then(res => res.json())
       .then(data => {
-        alert(data.message || 'Owner removed');
-        loadRooms(); // refresh rooms and owners
+        if (data.error) {
+          alert(data.error);
+        } else {
+          alert(data.message || 'Owner removed');
+          loadRooms(); // refresh both rooms and owners list
+        }
+      })
+      .catch(err => {
+        alert('Error removing owner');
+        console.error(err);
       });
     }
 
+    // ---------- LOGOUT ----------
     function logout() {
       localStorage.removeItem('adminToken');
       window.location = '/admin/index.html';
     }
 
+    // ---------- INITIAL LOAD ----------
     loadRooms();
   </script>
 </body>
