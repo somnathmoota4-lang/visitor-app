@@ -53,7 +53,6 @@
       document.querySelector(`.nav-item[data-tab="${tab}"]`).classList.add('active');
       let html = '';
 
-      // ---------- VISITORS TAB (PENDING ONLY) ----------
       if (tab === 'visitors') {
         html = `<div class="card">
           <h3>⏳ Pending Visitors</h3>
@@ -63,7 +62,6 @@
         loadPending();
       }
 
-      // ---------- COMPLAINTS TAB ----------
       else if (tab === 'complaints') {
         html = `<div class="card"><h3>📝 Raise Complaint</h3>
           <input id="complaintTitle" placeholder="Title">
@@ -83,7 +81,6 @@
         loadMyComplaints();
       }
 
-      // ---------- PROFILE TAB (Profile + History + Change Password + Logout) ----------
       else if (tab === 'profile') {
         html = `<div class="card">
           <h3>👤 My Profile</h3>
@@ -108,7 +105,7 @@
       }
     }
 
-    // ---------- PENDING ----------
+    // ---------- PENDING (uses roomNumber string directly) ----------
     function loadPending() {
       fetch('/api/owner/pending', { headers: { 'Authorization': 'Bearer ' + token } })
         .then(res => res.json())
@@ -126,7 +123,8 @@
               <div class="visitor-info">
                 <strong>${v.name}</strong>
                 <small>📱 ${v.phone} | 🎯 ${v.purpose}</small>
-                <small>🏢 ${v.source || 'N/A'} | 🕐 ${new Date(v.entryTime).toLocaleString('en-IN')}</small>
+                <small>🏢 ${v.source || 'N/A'} | 🚪 Room ${v.roomNumber || '-'}</small>
+                <small>🕐 ${new Date(v.entryTime).toLocaleString('en-IN')}</small>
               </div>
               <button class="btn-green" style="width:auto;padding:6px 12px;" onclick="respond('${v._id}','approve')">✓</button>
               <button class="btn-red" style="width:auto;padding:6px 12px;" onclick="respond('${v._id}','reject')">✕</button>
@@ -159,7 +157,7 @@
               <div class="visitor-info">
                 <strong>${v.name}</strong> <span class="badge ${badgeClass}">${v.status}</span>
                 <small>📱 ${v.phone} | 🎯 ${v.purpose} | 🏢 ${v.source || 'N/A'}</small>
-                <small>🕐 ${new Date(v.entryTime).toLocaleString('en-IN')}</small>
+                <small>🚪 Room ${v.roomNumber || '-'} | 🕐 ${new Date(v.entryTime).toLocaleString('en-IN')}</small>
               </div>
             </div>`;
           });
