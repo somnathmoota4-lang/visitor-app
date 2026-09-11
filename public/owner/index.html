@@ -53,21 +53,18 @@
       document.querySelector(`.nav-item[data-tab="${tab}"]`).classList.add('active');
       let html = '';
 
+      // ---------- VISITORS TAB (PENDING ONLY) ----------
       if (tab === 'visitors') {
-        html = `<div class="card"><h3>⏳ Pending Visitors</h3><div id="pendingList">Loading...</div></div>
-                <div class="card">
-                  <h3>📋 History</h3>
-                  <div class="date-row">
-                    <input type="date" id="fromDate">
-                    <input type="date" id="toDate">
-                    <button onclick="loadHistory()">🔍</button>
-                  </div>
-                  <div id="historyList">Loading...</div>
-                </div>`;
+        html = `<div class="card">
+          <h3>⏳ Pending Visitors</h3>
+          <div id="pendingList">Loading...</div>
+        </div>`;
         document.getElementById('tabContent').innerHTML = html;
         loadPending();
-        loadHistory();
-      } else if (tab === 'complaints') {
+      }
+
+      // ---------- COMPLAINTS TAB ----------
+      else if (tab === 'complaints') {
         html = `<div class="card"><h3>📝 Raise Complaint</h3>
           <input id="complaintTitle" placeholder="Title">
           <select id="complaintCategory">
@@ -84,14 +81,30 @@
         <div class="card"><h3>📊 My Complaints</h3><div id="complaintList">Loading...</div></div>`;
         document.getElementById('tabContent').innerHTML = html;
         loadMyComplaints();
-      } else if (tab === 'profile') {
-        html = `<div class="card"><h3>👤 My Profile</h3>
+      }
+
+      // ---------- PROFILE TAB (Profile + History + Change Password + Logout) ----------
+      else if (tab === 'profile') {
+        html = `<div class="card">
+          <h3>👤 My Profile</h3>
           <div id="profileInfo">Loading...</div>
-          <button onclick="window.location.href='/change-password.html'" style="background:#1565c0;color:white;padding:12px;border:none;border-radius:8px;width:100%;margin-top:10px;">🔐 Change Password</button>
+        </div>
+        <div class="card">
+          <h3>📋 Visitor History</h3>
+          <div class="date-row">
+            <input type="date" id="fromDate">
+            <input type="date" id="toDate">
+            <button onclick="loadHistory()">🔍</button>
+          </div>
+          <div id="historyList">Loading...</div>
+        </div>
+        <div class="card">
+          <button onclick="window.location.href='/change-password.html'" style="background:#1565c0;">🔐 Change Password</button>
           <button class="btn-red" onclick="logout()" style="margin-top:10px;">🚪 Logout</button>
         </div>`;
         document.getElementById('tabContent').innerHTML = html;
         loadProfile();
+        loadHistory();
       }
     }
 
@@ -161,7 +174,7 @@
         body: JSON.stringify({ visitId, action })
       })
       .then(res => res.json())
-      .then(() => { loadPending(); loadHistory(); });
+      .then(() => { loadPending(); });
     }
 
     // ---------- COMPLAINTS ----------
