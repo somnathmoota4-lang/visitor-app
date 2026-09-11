@@ -167,7 +167,6 @@ router.get('/visitors-full', async (req, res) => {
     const visitors = await Visitor.find()
       .populate('guard', 'name email phone')
       .populate('owner', 'name email phone roomNumber')
-      .populate('room', 'roomNumber floor')
       .sort({ entryTime: -1 })
       .limit(200);
     res.json(visitors);
@@ -175,7 +174,6 @@ router.get('/visitors-full', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
 // ---------- DEBUG ----------
 router.get('/debug-data', async (req, res) => {
   try {
