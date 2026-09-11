@@ -7,7 +7,6 @@ var visitorQueue = [];
 var selectedFloor = null;
 var selectedRoomNumber = null;
 
-// ---------- LOAD ROOMS ----------
 function loadRooms() {
   fetch('/api/guard/rooms', { headers: { 'Authorization': 'Bearer ' + token } })
     .then(res => res.json())
@@ -67,7 +66,6 @@ function selectRoom(roomNumber, chip) {
   chip.classList.add('selected');
 }
 
-// ---------- PHOTO ----------
 function openCamera() {
   document.getElementById('photo').click();
 }
@@ -81,7 +79,6 @@ function previewPhoto() {
   }
 }
 
-// ---------- CHECK IN ----------
 function checkinVisitor() {
   const name = document.getElementById('name').value.trim();
   const phone = document.getElementById('phone').value.trim();
@@ -99,7 +96,7 @@ function checkinVisitor() {
   formData.append('phone', phone);
   formData.append('purpose', purpose);
   formData.append('source', source);
-  formData.append('roomId', selectedRoomNumber);  // passing room NUMBER string
+  formData.append('roomId', selectedRoomNumber);
   const photoFile = document.getElementById('photo').files[0];
   if (photoFile) formData.append('photo', photoFile);
 
@@ -147,7 +144,6 @@ function checkinVisitor() {
   });
 }
 
-// ---------- TABS ----------
 function switchTab(tab) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.getElementById('checkinTab').style.display = 'none';
@@ -212,7 +208,7 @@ function loadHistory() {
         const statusColor = v.status === 'approved' ? 'green' : v.status === 'rejected' ? 'red' : 'orange';
         html += `<div style="padding:10px;border-bottom:1px solid #eee;">
           <strong>${v.name}</strong> <span style="color:${statusColor};">(${v.status})</span>
-          <br><small>📱 ${v.phone} | 🎯 ${v.purpose} | 🏢 ${v.source || 'N/A'} | 🕐 ${new Date(v.entryTime).toLocaleTimeString()}</small>
+          <br><small>📱 ${v.phone} | 🎯 ${v.purpose} | 🏢 ${v.source || 'N/A'} | 🚪 Room ${v.roomNumber || '-'} | 🕐 ${new Date(v.entryTime).toLocaleTimeString()}</small>
         </div>`;
       });
       el.innerHTML = html;
