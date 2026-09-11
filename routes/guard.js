@@ -1,64 +1,96 @@
 const router = require('express').Router();
 const auth = require('../middleware/auth');
 const Visitor = require('../models/Visitor');
-const Room = require('../models/Room');
+const User = require('../models/User');
 const upload = require('../middleware/upload');
 
 router.use(auth('guard'));
 
-// ... rest of your code stays the same
-
-router.use(auth('guard'));
-
-// Get rooms that HAVE owners
+// ---------- GET ROOMS WITH OWNERS ----------
 router.get('/rooms', async (req, res) => {
   try {
-    const rooms = await Room.find({ owner: { $ne: null } })
-      .populate('owner', 'name phone email')
-      .sort({ floor: 1, roomNumber: 1 });
-    res.json(rooms);
+    const owners = await User.find({
+      role: 'owner',
+      status: 'approved',
+      roomNumber: { $ne: '' }
+    }).select('name roomNumber phone');
+
+    const roomsList = owners.map(o => ({
+      roomNumber: o.roomNumber,
+      floor: parseInt(o.roomNumber.charAt(0)) || 0,
+      owner: { name: o.name, phone: o.phone || '' }
+    }));
+
+    res.json(roomsList);
   } catch (err) {
+    console.error('Error loading rooms:', err);
     res.status(500).json({ error: err.message });
   }
 });
 
-// Check-in visitor
+// ---------- CHECK-IN VISITOR ----------
 router.post('/checkin', upload.single('photo'), async (req, res) => {
   const { name, phone, purpose, source, roomId } = req.body;
   const photo = req.file ? '/uploads/' + req.file.filename : null;
+
   try {
-    const room = await Room.findById(roomId).populate('owner');
-    if (!room) return res.status(400).json({ error: 'Room not found' });
-    if (!room.owner) return res.status(400).json({ error: 'Room has no owner assigned' });
+    const roomNumber = String(roomId || '').trim();
+    if (!roomNumber) return res.status(400).json({ error: 'Room number is required' });
+
+    const owner = await User.findOne({
+      role: 'owner',
+      status: 'approved',
+      roomNumber: roomNumber
+    });
+
+    if (!owner) return res.status(400).json({ error: 'No owner found for Room ' + roomNumber });
 
     const visitor = await Visitor.create({
-      name, phone, purpose, source, photo,
-      room: roomId,
-      owner: room.owner._id,
+      name,
+      phone,
+      purpose,
+      source,
+      photo,
+      roomNumber: roomNumber,   // <-- string stored directly
+      owner: owner._id,
       guard: req.user.id,
       status: 'pending'
     });
 
-    // Socket event (existing)
     const io = req.app.get('io');
-    io.to(visitor._id.toString()).emit('pending_visitor', { visitorId: visitor._id, name, room: room.roomNumber });
+    if (io) {
+      io.to(visitor._id.toString()).emit('pending_visitor', {
+        visitorId: visitor._id,
+        name,
+        room: roomNumber
+      });
+    }
 
-    // Push notification to owner (if firebase admin initialized) - add later
+    console.log(`Visitor ${name} checked in → Room ${roomNumber} (Owner: ${owner.name})`);
 
-    res.json({ message: 'Visitor registered, waiting for owner approval', visitId: visitor._id });
+    res.json({
+      message: 'Visitor registered, waiting for owner approval',
+      visitId: visitor._id
+    });
   } catch (err) {
+    console.error('Check-in error:', err);
     res.status(500).json({ error: err.message });
   }
 });
 
-// Get today's visitors for this guard
+// ---------- TODAY'S VISITORS ----------
 router.get('/today', async (req, res) => {
   try {
     const start = new Date();
-    start.setHours(0,0,0,0);
-    const visitors = await Visitor.find({ guard: req.user.id, entryTime: { $gte: start } })
-      .populate('room owner')
+    start.setHours(0, 0, 0, 0);
+
+    const visitors = await Visitor.find({
+      guard: req.user.id,
+      entryTime: { $gte: start }
+    })
+      .populate('owner', 'name roomNumber')
       .sort({ entryTime: -1 });
+
     res.json(visitors);
   } catch (err) {
     res.status(500).json({ error: err.message });
