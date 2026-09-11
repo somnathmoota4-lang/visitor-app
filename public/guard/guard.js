@@ -7,6 +7,7 @@ var visitorQueue = [];
 var selectedFloor = null;
 var selectedRoomId = null;
 
+// ---------- LOAD ROOMS ----------
 function loadRooms() {
   fetch('/api/guard/rooms', { headers: { 'Authorization': 'Bearer ' + token } })
     .then(res => res.json())
@@ -62,6 +63,12 @@ function selectRoom(roomId, chip) {
   chip.classList.add('selected');
 }
 
+// ---------- CAMERA (Direct Phone Camera) ----------
+function openCamera() {
+  // Use HTML5 capture attribute for direct camera access on phone
+  document.getElementById('photo').click();
+}
+
 function previewPhoto() {
   const file = document.getElementById('photo').files[0];
   if (file) {
@@ -71,12 +78,18 @@ function previewPhoto() {
   }
 }
 
+// ---------- CHECK IN ----------
 function checkinVisitor() {
-  const name = document.getElementById('name').value;
-  const phone = document.getElementById('phone').value;
+  const name = document.getElementById('name').value.trim();
+  const phone = document.getElementById('phone').value.trim();
   const purpose = document.getElementById('purpose').value;
   const source = document.getElementById('visitorSource').value;
-  if (!name || !phone || !purpose || !source || !selectedRoomId) { alert('Fill all fields and select room'); return; }
+  const btn = document.getElementById('checkinBtn');
+
+  if (!name || !phone || !purpose || !source || !selectedRoomId) {
+    alert('Please fill all fields and select floor + room');
+    return;
+  }
 
   const formData = new FormData();
   formData.append('name', name);
@@ -87,6 +100,9 @@ function checkinVisitor() {
   const photoFile = document.getElementById('photo').files[0];
   if (photoFile) formData.append('photo', photoFile);
 
+  btn.disabled = true;
+  btn.innerText = '⏳ Checking in...';
+
   fetch('/api/guard/checkin', {
     method: 'POST',
     headers: { 'Authorization': 'Bearer ' + token },
@@ -94,6 +110,8 @@ function checkinVisitor() {
   })
   .then(res => res.json())
   .then(data => {
+    btn.disabled = false;
+    btn.innerText = '✅ Check In Visitor';
     if (data.visitId) {
       const room = allRooms.find(r => r._id === selectedRoomId);
       visitorQueue.push({
@@ -112,13 +130,20 @@ function checkinVisitor() {
       document.getElementById('photoPreview').innerHTML = '<span style="font-size:30px;color:#999;">📷</span>';
       selectedRoomId = null;
       updateQueueCount();
-      alert('✅ Visitor checked in! Waiting for approval.');
+      alert('✅ Visitor checked in! Waiting for owner approval.');
     } else {
       alert(data.error || 'Error');
     }
+  })
+  .catch(err => {
+    btn.disabled = false;
+    btn.innerText = '✅ Check In Visitor';
+    alert('Connection error');
+    console.error(err);
   });
 }
 
+// ---------- TAB SWITCH ----------
 function switchTab(tab) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.getElementById('checkinTab').style.display = 'none';
