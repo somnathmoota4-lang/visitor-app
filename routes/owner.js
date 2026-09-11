@@ -27,7 +27,6 @@ router.get('/me', async (req, res) => {
 router.get('/pending', async (req, res) => {
   try {
     const visitors = await Visitor.find({ owner: req.user.id, status: 'pending' })
-      .populate('room', 'roomNumber floor')
       .sort({ entryTime: -1 });
     res.json(visitors);
   } catch (err) {
@@ -35,7 +34,7 @@ router.get('/pending', async (req, res) => {
   }
 });
 
-// ---------- HISTORY (with date range) ----------
+// ---------- HISTORY ----------
 router.get('/history', async (req, res) => {
   try {
     const { from, to } = req.query;
@@ -46,7 +45,6 @@ router.get('/history', async (req, res) => {
       if (to) { const end = new Date(to); end.setHours(23, 59, 59, 999); filter.entryTime.$lte = end; }
     }
     const visitors = await Visitor.find(filter)
-      .populate('room', 'roomNumber floor')
       .sort({ entryTime: -1 })
       .limit(200);
     res.json(visitors);
