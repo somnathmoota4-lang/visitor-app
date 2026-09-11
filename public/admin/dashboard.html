@@ -11,7 +11,7 @@
     .card { background: white; padding: 20px; margin: 15px 0; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
     .card h3 { color: #1a237e; margin-bottom: 15px; font-size: 18px; border-bottom: 2px solid #e8eaf6; padding-bottom: 8px; }
     input, select { width: 100%; padding: 12px; margin: 8px 0; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 15px; }
-    input:focus, select:focus { border-color: #1a237e; outline: none; }
+    input:focus { border-color: #1a237e; outline: none; }
     button { width: 100%; padding: 12px; background: #1a237e; color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
     button.green { background: #2e7d32; }
     button.red { background: #c62828; }
@@ -22,13 +22,14 @@
     .chip { flex: 0 0 auto; padding: 10px 20px; background: #e8eaf6; border: 2px solid #c5cae9; border-radius: 25px; font-size: 14px; font-weight: bold; color: #1a237e; cursor: pointer; }
     .chip.selected { background: #1a237e; color: white; border-color: #1a237e; }
     .label { font-weight: bold; margin: 10px 0 5px; }
-    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
     th, td { padding: 8px; border: 1px solid #ddd; text-align: left; }
     th { background: #f0f0f0; }
-    .action-btn { cursor: pointer; font-weight: bold; border: none; padding: 5px 10px; border-radius: 5px; margin: 2px; font-size: 12px; }
+    .action-btn { cursor: pointer; font-weight: bold; border: none; padding: 5px 10px; border-radius: 5px; margin: 2px; font-size: 12px; width: auto; }
     .btn-edit { background: #1565c0; color: white; }
     .btn-room { background: #f57c00; color: white; }
     .btn-delete { background: #c62828; color: white; }
+    .no-room { color: #c62828; font-weight: bold; }
   </style>
 </head>
 <body>
@@ -66,6 +67,13 @@
   <div class="card">
     <h3>👥 Manage Owners</h3>
     <div id="ownerList">Loading...</div>
+  </div>
+
+  <!-- Visitor Log -->
+  <div class="card">
+    <h3>📊 Visitor Log</h3>
+    <button onclick="loadVisitorLog()" style="background:#1565c0;">🔄 Refresh Log</button>
+    <div id="visitorLog" style="margin-top:10px;overflow-x:auto;">Click Refresh to load</div>
   </div>
 
   <script>
@@ -194,15 +202,15 @@
         .then(owners => {
           const container = document.getElementById('ownerList');
           if (!owners.length) { container.innerHTML = '<p>No owners yet</p>'; return; }
-          let html = '<table><tr><th>Name</th><th>Email</th><th>Phone</th><th>Room</th><th>Actions</th></tr>';
+          let html = '<div style="overflow-x:auto;"><table><tr><th>Name</th><th>Email</th><th>Phone</th><th>Room</th><th>Actions</th></tr>';
           owners.forEach(o => {
             const roomText = o.room ? o.room.roomNumber : 'No Room';
-            const roomStyle = o.room ? '' : 'style="color:#c62828;font-weight:bold;"';
+            const roomClass = o.room ? '' : 'no-room';
             html += `<tr>
               <td>${o.name}</td>
               <td>${o.email}</td>
               <td>${o.phone || '-'}</td>
-              <td ${roomStyle}>${roomText}</td>
+              <td class="${roomClass}">${roomText}</td>
               <td>
                 <button class="action-btn btn-edit" onclick="editOwner('${o._id}','${o.name}','${o.email}','${o.phone || ''}')">✏️ Edit</button>
                 <button class="action-btn btn-room" onclick="changeRoom('${o._id}')">🔁 Room</button>
@@ -210,13 +218,13 @@
               </td>
             </tr>`;
           });
-          html += '</table>';
+          html += '</table></div>';
           container.innerHTML = html;
         })
         .catch(err => console.error('Error loading owners:', err));
     }
 
-    // ---------- EDIT OWNER DETAILS ----------
+    // ---------- EDIT OWNER ----------
     function editOwner(id, name, email, phone) {
       const newName = prompt('Edit name:', name);
       if (newName === null) return;
@@ -249,17 +257,10 @@
       })
       .then(res => res.json())
       .then(data => {
-        if (data.error) {
-          alert(data.error);
-        } else {
-          alert(data.message);
-          loadRooms(); // refresh rooms and owners
-        }
+        if (data.error) alert(data.error);
+        else { alert(data.message); loadRooms(); }
       })
-      .catch(err => {
-        alert('Error changing room');
-        console.error(err);
-      });
+      .catch(err => { alert('Error changing room'); console.error(err); });
     }
 
     // ---------- REMOVE OWNER ----------
@@ -271,17 +272,35 @@
       })
       .then(res => res.json())
       .then(data => {
-        if (data.error) {
-          alert(data.error);
-        } else {
-          alert(data.message || 'Owner removed');
-          loadRooms(); // refresh both rooms and owners list
-        }
+        if (data.error) alert(data.error);
+        else { alert(data.message || 'Owner removed'); loadRooms(); }
       })
-      .catch(err => {
-        alert('Error removing owner');
-        console.error(err);
-      });
+      .catch(err => { alert('Error removing owner'); console.error(err); });
+    }
+
+    // ---------- VISITOR LOG ----------
+    function loadVisitorLog() {
+      document.getElementById('visitorLog').innerHTML = 'Loading...';
+      fetch('/api/admin/visitors-full', { headers: { 'Authorization': 'Bearer ' + token } })
+        .then(res => res.json())
+        .then(visitors => {
+          if (!visitors.length) { document.getElementById('visitorLog').innerHTML = '<p>No visitors yet</p>'; return; }
+          let html = '<table><tr><th>Visitor</th><th>Room</th><th>Owner</th><th>Guard</th><th>Status</th><th>Time</th></tr>';
+          visitors.forEach(v => {
+            const statusColor = v.status === 'approved' ? 'green' : v.status === 'rejected' ? 'red' : 'orange';
+            html += `<tr>
+              <td><strong>${v.name}</strong><br><small>${v.phone}</small></td>
+              <td>${v.room ? v.room.roomNumber : '-'}</td>
+              <td>${v.owner ? v.owner.name : '-'}</td>
+              <td>${v.guard ? v.guard.name : '-'}</td>
+              <td style="color:${statusColor};font-weight:bold;">${v.status}</td>
+              <td>${new Date(v.entryTime).toLocaleString('en-IN')}</td>
+            </tr>`;
+          });
+          html += '</table>';
+          document.getElementById('visitorLog').innerHTML = html;
+        })
+        .catch(err => { document.getElementById('visitorLog').innerHTML = 'Error loading'; console.error(err); });
     }
 
     // ---------- LOGOUT ----------
@@ -290,7 +309,7 @@
       window.location = '/admin/index.html';
     }
 
-    // ---------- INITIAL LOAD ----------
+    // ---------- INIT ----------
     loadRooms();
   </script>
 </body>
