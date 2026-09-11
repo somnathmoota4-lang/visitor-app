@@ -37,13 +37,20 @@ router.get('/pending', async (req, res) => {
   }
 });
 
-// Visitor history
+// Visitor history with optional date range
 router.get('/history', async (req, res) => {
   try {
-    const visitors = await Visitor.find({ owner: req.user.id, status: { $in: ['approved', 'rejected'] } })
+    const { from, to } = req.query;
+    const filter = { owner: req.user.id, status: { $in: ['approved', 'rejected'] } };
+    if (from || to) {
+      filter.entryTime = {};
+      if (from) filter.entryTime.$gte = new Date(from);
+      if (to) { const end = new Date(to); end.setHours(23, 59, 59, 999); filter.entryTime.$lte = end; }
+    }
+    const visitors = await Visitor.find(filter)
       .populate('room', 'roomNumber floor')
       .sort({ entryTime: -1 })
-      .limit(50);
+      .limit(200);
     res.json(visitors);
   } catch (err) {
     res.status(500).json({ error: err.message });
