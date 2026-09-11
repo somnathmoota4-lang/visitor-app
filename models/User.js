@@ -7,14 +7,16 @@ const userSchema = new mongoose.Schema({
   phone: String,
   role: { type: String, enum: ['super_admin', 'guard', 'owner'], required: true },
   password: String,
-  documents: [String],
-  room: { type: mongoose.Schema.Types.ObjectId, ref: 'Room' },
-  status: { type: String, enum: ['pending', 'approved', 'rejected', 'pending_activation'], default: 'pending' },
+  status: {
+    type: String,
+    enum: ['pending', 'approved', 'rejected', 'pending_activation', 'inactive'],
+    default: 'pending'
+  },
+  roomNumber: { type: String, default: '' },
   activationToken: String,
   fcmToken: String,
   resetOTP: String,
-resetOTPExpires: Date,
-  guardId: String
+  resetOTPExpires: Date
 }, { timestamps: true });
 
 userSchema.pre('save', async function(next) {
