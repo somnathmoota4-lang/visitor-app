@@ -3,12 +3,6 @@ const auth = require('../middleware/auth');
 const User = require('../models/User');
 const Room = require('../models/Room');
 const Visitor = require('../models/Visitor');
-const {
-  getOwnerWithRoom,
-  getAllOwnersWithRooms,
-  assignRoomToOwner,
-  removeOwnerFromRoom
-} = require('../utils/roomHelper');
 
 router.use(auth('super_admin'));
 
@@ -25,47 +19,43 @@ router.post('/guards', async (req, res) => {
 
 // ---------- CREATE OWNER ----------
 router.post('/owners/create', async (req, res) => {
-  const { name, email, phone, password, roomId } = req.body;
+  const { name, email, phone, password, roomNumber } = req.body;
   try {
     const existingUser = await User.findOne({ email });
     if (existingUser) return res.status(400).json({ error: 'This email is already registered.' });
 
-    const room = await Room.findById(roomId);
-    if (!room) return res.status(404).json({ error: 'Room not found' });
-    if (room.owner) return res.status(400).json({ error: 'Room already has an owner' });
+    if (!roomNumber) return res.status(400).json({ error: 'Room number is required' });
+
+    const roomTaken = await User.findOne({ role: 'owner', status: 'approved', roomNumber: roomNumber });
+    if (roomTaken) return res.status(400).json({ error: `Room ${roomNumber} already has an owner (${roomTaken.name})` });
 
     const owner = await User.create({
       name, email, phone, password,
       role: 'owner',
-      status: 'approved'
+      status: 'approved',
+      roomNumber: roomNumber
     });
 
-    room.owner = owner._id;
-    room.isAvailable = false;
-    await room.save();
+    // Also mark the Room document as occupied (convenience)
+    const room = await Room.findOne({ roomNumber: roomNumber });
+    if (room) {
+      room.owner = owner._id;
+      room.isAvailable = false;
+      await room.save();
+    }
 
-    res.json({ message: `Owner ${owner.name} assigned to Room ${room.roomNumber}` });
+    res.json({ message: `Owner ${owner.name} assigned to Room ${roomNumber}` });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
 });
 
-// ---------- GET ALL ACTIVE OWNERS WITH ROOMS ----------
+// ---------- GET ALL ACTIVE OWNERS ----------
 router.get('/owners', async (req, res) => {
   try {
-    const owners = await getAllOwnersWithRooms();
+    const owners = await User.find({ role: 'owner', status: 'approved' })
+      .select('name email phone roomNumber status');
     res.json(owners);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// ---------- GET SINGLE OWNER ----------
-router.get('/owners/:id', async (req, res) => {
-  try {
-    const owner = await getOwnerWithRoom(req.params.id);
-    if (!owner) return res.status(404).json({ error: 'Owner not found' });
-    res.json(owner);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -92,12 +82,45 @@ router.put('/owners/:id', async (req, res) => {
   }
 });
 
-// ---------- CHANGE / ASSIGN ROOM ----------
+// ---------- CHANGE / ASSIGN ROOM NUMBER ----------
 router.put('/owners/:id/room', async (req, res) => {
   const { roomNumber } = req.body;
   try {
-    const room = await assignRoomToOwner(req.params.id, roomNumber.trim());
-    res.json({ message: `Owner assigned to Room ${room.roomNumber}` });
+    if (!roomNumber) return res.status(400).json({ error: 'Room number is required' });
+
+    const owner = await User.findById(req.params.id);
+    if (!owner || owner.role !== 'owner') return res.status(404).json({ error: 'Owner not found' });
+
+    const roomTaken = await User.findOne({
+      role: 'owner', status: 'approved',
+      roomNumber: roomNumber,
+      _id: { $ne: owner._id }
+    });
+    if (roomTaken) return res.status(400).json({ error: `Room ${roomNumber} already has an owner (${roomTaken.name})` });
+
+    // Free old room in Room collection
+    if (owner.roomNumber) {
+      const oldRoom = await Room.findOne({ roomNumber: owner.roomNumber });
+      if (oldRoom) {
+        oldRoom.owner = null;
+        oldRoom.isAvailable = true;
+        await oldRoom.save();
+      }
+    }
+
+    // Update user
+    owner.roomNumber = roomNumber.trim();
+    await owner.save();
+
+    // Mark new room occupied
+    const newRoom = await Room.findOne({ roomNumber: roomNumber.trim() });
+    if (newRoom) {
+      newRoom.owner = owner._id;
+      newRoom.isAvailable = false;
+      await newRoom.save();
+    }
+
+    res.json({ message: `Owner ${owner.name} assigned to Room ${roomNumber}` });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
@@ -109,7 +132,16 @@ router.delete('/owners/:id', async (req, res) => {
     const owner = await User.findById(req.params.id);
     if (!owner || owner.role !== 'owner') return res.status(404).json({ error: 'Owner not found' });
 
-    await removeOwnerFromRoom(owner._id);
+    if (owner.roomNumber) {
+      const room = await Room.findOne({ roomNumber: owner.roomNumber });
+      if (room) {
+        room.owner = null;
+        room.isAvailable = true;
+        await room.save();
+      }
+    }
+
+    owner.roomNumber = '';
     owner.status = 'inactive';
     await owner.save();
 
@@ -122,19 +154,19 @@ router.delete('/owners/:id', async (req, res) => {
 // ---------- GET ALL ROOMS ----------
 router.get('/rooms', async (req, res) => {
   try {
-    const rooms = await Room.find().populate('owner', 'name email phone');
+    const rooms = await Room.find().sort({ floor: 1, roomNumber: 1 });
     res.json(rooms);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// ---------- GET VISITORS WITH GUARD + OWNER + ROOM ----------
+// ---------- VISITOR LOG ----------
 router.get('/visitors-full', async (req, res) => {
   try {
     const visitors = await Visitor.find()
       .populate('guard', 'name email phone')
-      .populate('owner', 'name email phone')
+      .populate('owner', 'name email phone roomNumber')
       .populate('room', 'roomNumber floor')
       .sort({ entryTime: -1 })
       .limit(200);
@@ -144,75 +176,47 @@ router.get('/visitors-full', async (req, res) => {
   }
 });
 
-// ---------- DEBUG: See raw owner and room data ----------
+// ---------- DEBUG ----------
 router.get('/debug-data', async (req, res) => {
   try {
-    const owners = await User.find({ role: 'owner' }).select('name email phone status');
-    const roomsWithOwners = await Room.find({ owner: { $ne: null } }).populate('owner', 'name email');
-
-    const ownerRoomMap = await Promise.all(owners.map(async (owner) => {
-      const room = await Room.findOne({ owner: owner._id });
-      return {
-        ownerId: owner._id,
-        name: owner.name,
-        email: owner.email,
-        status: owner.status,
-        hasRoomInRoomCollection: !!room,
-        roomNumber: room ? room.roomNumber : null
-      };
-    }));
-
-    res.json({
-      totalOwners: owners.length,
-      totalRoomsWithOwner: roomsWithOwners.length,
-      owners: ownerRoomMap
-    });
+    const owners = await User.find({ role: 'owner' }).select('name email phone status roomNumber');
+    res.json({ totalOwners: owners.length, owners });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// ---------- FIX: Repair broken owner-room links ----------
+// ---------- FIX: Sync Room collection with User.roomNumber ----------
 router.post('/fix-broken-links', async (req, res) => {
   try {
-    const results = { cleared: 0, matched: 0, orphans: [], details: [] };
+    const results = { synced: 0, orphans: [], details: [] };
 
-    // Step 1: Clear stale room.owner references (owner missing or inactive)
-    const roomsWithOwner = await Room.find({ owner: { $ne: null } });
-    for (const room of roomsWithOwner) {
-      const owner = await User.findById(room.owner);
-      if (!owner) {
-        results.details.push(`🗑️ Cleared Room ${room.roomNumber} (owner no longer exists)`);
+    const rooms = await Room.find();
+    for (const room of rooms) {
+      const owner = await User.findOne({ role: 'owner', status: 'approved', roomNumber: room.roomNumber });
+      if (owner) {
+        room.owner = owner._id;
+        room.isAvailable = false;
+        await room.save();
+        results.synced++;
+        results.details.push(`✅ Room ${room.roomNumber} → ${owner.name}`);
+      } else if (room.owner) {
         room.owner = null;
         room.isAvailable = true;
         await room.save();
-        results.cleared++;
-      } else if (owner.role !== 'owner' || owner.status !== 'approved') {
-        results.details.push(`🗑️ Cleared Room ${room.roomNumber} (owner inactive or wrong role)`);
-        room.owner = null;
-        room.isAvailable = true;
-        await room.save();
-        results.cleared++;
+        results.details.push(`🗑️ Cleared Room ${room.roomNumber} (no active owner)`);
       }
     }
 
-    // Step 2: For each active owner, verify they have a room
     const owners = await User.find({ role: 'owner', status: 'approved' });
     for (const owner of owners) {
-      const room = await Room.findOne({ owner: owner._id });
-      if (room) {
-        results.details.push(`✅ ${owner.name} → Room ${room.roomNumber}`);
-        results.matched++;
-      } else {
-        results.details.push(`⚠️ ${owner.name} (${owner.email}) has NO room — use 🔁 Room button to assign`);
+      if (!owner.roomNumber) {
         results.orphans.push({ id: owner._id, name: owner.name, email: owner.email });
+        results.details.push(`⚠️ ${owner.name} has no room number`);
       }
     }
 
-    res.json({
-      message: `Cleared ${results.cleared} stale links, matched ${results.matched} owners with rooms, ${results.orphans.length} orphan owners`,
-      results
-    });
+    res.json({ message: `Synced ${results.synced} rooms, ${results.orphans.length} orphans`, results });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
