@@ -18,6 +18,11 @@
     .msg { padding: 10px; border-radius: 8px; margin-top: 10px; font-size: 14px; display: none; }
     .msg.success { background: #e8f5e9; color: #2e7d32; display: block; }
     .msg.error { background: #ffebee; color: #c62828; display: block; }
+    .chip-scroll { display: flex; overflow-x: auto; gap: 10px; padding: 10px 0; }
+    .chip { flex: 0 0 auto; padding: 10px 20px; background: #e8eaf6; border: 2px solid #c5cae9; border-radius: 25px; font-size: 14px; font-weight: bold; color: #1a237e; cursor: pointer; }
+    .chip.selected { background: #1a237e; color: white; border-color: #1a237e; }
+    .chip.occupied { background: #ffe0e0; color: #c62828; border-color: #ffb3b3; cursor: not-allowed; opacity: 0.7; }
+    .label { font-weight: bold; margin: 10px 0 5px; }
     table { width: 100%; border-collapse: collapse; font-size: 13px; }
     th, td { padding: 8px; border: 1px solid #ddd; text-align: left; }
     th { background: #f0f0f0; }
@@ -44,7 +49,13 @@
     <input type="email" id="ownerEmail" placeholder="Owner Email">
     <input type="tel" id="ownerPhone" placeholder="Owner Phone">
     <input type="password" id="ownerPassword" placeholder="Password">
-    <input type="text" id="ownerRoomNumber" placeholder="Room Number (e.g., 101)">
+
+    <div class="label">Select Floor</div>
+    <div id="floorChips" class="chip-scroll"></div>
+
+    <div class="label">Select Room</div>
+    <div id="roomChips" class="chip-scroll"></div>
+
     <button class="green" onclick="createOwner()">✅ Create Owner</button>
     <div class="msg" id="ownerMsg"></div>
   </div>
@@ -82,23 +93,83 @@
     const token = localStorage.getItem('adminToken');
     if (!token) window.location = '/admin/index.html';
 
+    let allRooms = [];
+    let selectedFloor = null;
+    let selectedRoomNumber = null;
+
+    // ---------- LOAD ROOMS ----------
+    function loadRooms() {
+      fetch('/api/admin/rooms', { headers: { 'Authorization': 'Bearer ' + token } })
+        .then(res => res.json())
+        .then(rooms => {
+          allRooms = rooms;
+          renderFloors();
+        })
+        .catch(err => console.error('Error loading rooms:', err));
+    }
+
+    function renderFloors() {
+      const floors = [...new Set(allRooms.map(r => r.floor))].sort((a,b) => a-b);
+      const container = document.getElementById('floorChips');
+      container.innerHTML = '';
+      if (!floors.length) { container.innerHTML = '<div style="color:#999;">No floors</div>'; return; }
+      floors.forEach(f => {
+        const div = document.createElement('div');
+        div.className = 'chip';
+        div.textContent = 'Floor ' + f;
+        div.onclick = () => { selectFloor(f, div); };
+        container.appendChild(div);
+      });
+    }
+
+    function selectFloor(floor, chip) {
+      selectedFloor = floor;
+      selectedRoomNumber = null;
+      document.querySelectorAll('#floorChips .chip').forEach(c => c.classList.remove('selected'));
+      chip.classList.add('selected');
+      renderRooms();
+    }
+
+    function renderRooms() {
+      const container = document.getElementById('roomChips');
+      container.innerHTML = '';
+      if (!selectedFloor) return;
+      const roomsOnFloor = allRooms.filter(r => r.floor == selectedFloor);
+      if (!roomsOnFloor.length) { container.innerHTML = '<div style="color:#999;">No rooms on this floor</div>'; return; }
+      roomsOnFloor.forEach(room => {
+        const occupied = room.owner ? true : false;
+        const div = document.createElement('div');
+        div.className = 'chip' + (occupied ? ' occupied' : '');
+        div.textContent = 'Room ' + room.roomNumber + (occupied ? ' (Occupied)' : '');
+        if (!occupied) {
+          div.onclick = () => { selectRoom(room.roomNumber, div); };
+        }
+        container.appendChild(div);
+      });
+    }
+
+    function selectRoom(roomNumber, chip) {
+      selectedRoomNumber = roomNumber;
+      document.querySelectorAll('#roomChips .chip').forEach(c => c.classList.remove('selected'));
+      chip.classList.add('selected');
+    }
+
     // ---------- CREATE OWNER ----------
     function createOwner() {
       const name = document.getElementById('ownerName').value.trim();
       const email = document.getElementById('ownerEmail').value.trim();
       const phone = document.getElementById('ownerPhone').value.trim();
       const password = document.getElementById('ownerPassword').value;
-      const roomNumber = document.getElementById('ownerRoomNumber').value.trim();
       const msg = document.getElementById('ownerMsg');
 
-      if (!name || !email || !password || !roomNumber) {
-        msg.className = 'msg error'; msg.innerText = 'Fill all fields including room number'; return;
+      if (!name || !email || !password || !selectedRoomNumber) {
+        msg.className = 'msg error'; msg.innerText = 'Fill all fields and select a room'; return;
       }
 
       fetch('/api/admin/owners/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-        body: JSON.stringify({ name, email, phone, password, roomNumber })
+        body: JSON.stringify({ name, email, phone, password, roomNumber: selectedRoomNumber })
       })
       .then(res => res.json())
       .then(data => {
@@ -109,7 +180,8 @@
           document.getElementById('ownerEmail').value = '';
           document.getElementById('ownerPhone').value = '';
           document.getElementById('ownerPassword').value = '';
-          document.getElementById('ownerRoomNumber').value = '';
+          selectedFloor = null; selectedRoomNumber = null;
+          loadRooms();
           loadOwners();
         }
       })
@@ -168,7 +240,6 @@
         });
     }
 
-    // ---------- EDIT OWNER ----------
     function editOwner(id, name, email, phone) {
       const newName = prompt('Edit name:', name);
       if (newName === null) return;
@@ -189,9 +260,8 @@
       });
     }
 
-    // ---------- CHANGE ROOM ----------
     function changeRoom(id, currentRoom) {
-      const roomNumber = prompt('Enter room number:', currentRoom || '');
+      const roomNumber = prompt('Enter new room number:', currentRoom || '');
       if (!roomNumber) return;
 
       fetch('/api/admin/owners/' + id + '/room', {
@@ -202,11 +272,10 @@
       .then(res => res.json())
       .then(data => {
         if (data.error) alert(data.error);
-        else { alert(data.message); loadOwners(); }
+        else { alert(data.message); loadRooms(); loadOwners(); }
       });
     }
 
-    // ---------- REMOVE OWNER ----------
     function removeOwner(id) {
       if (!confirm('Remove this owner and free the room?')) return;
       fetch('/api/admin/owners/' + id, {
@@ -216,11 +285,10 @@
       .then(res => res.json())
       .then(data => {
         if (data.error) alert(data.error);
-        else { alert(data.message || 'Owner removed'); loadOwners(); }
+        else { alert(data.message || 'Owner removed'); loadRooms(); loadOwners(); }
       });
     }
 
-    // ---------- DEBUG ----------
     function debugData() {
       const out = document.getElementById('debugOutput');
       out.style.display = 'block';
@@ -234,11 +302,9 @@
             html += `<div>${o.name} (${o.email}) [${o.status}] — ${room}</div>`;
           });
           out.innerHTML = html;
-        })
-        .catch(err => { out.innerHTML = 'Error: ' + err.message; });
+        });
     }
 
-    // ---------- FIX ----------
     function fixBrokenLinks() {
       if (!confirm('Sync Room collection with user room numbers?')) return;
       const out = document.getElementById('debugOutput');
@@ -253,12 +319,11 @@
         let html = `<strong>${data.message}</strong><hr>`;
         data.results.details.forEach(d => { html += `<div>${d}</div>`; });
         out.innerHTML = html;
+        loadRooms();
         loadOwners();
-      })
-      .catch(err => { out.innerHTML = 'Error: ' + err.message; });
+      });
     }
 
-    // ---------- VISITOR LOG ----------
     function loadVisitorLog() {
       document.getElementById('visitorLog').innerHTML = 'Loading...';
       fetch('/api/admin/visitors-full', { headers: { 'Authorization': 'Bearer ' + token } })
@@ -282,13 +347,13 @@
         });
     }
 
-    // ---------- LOGOUT ----------
     function logout() {
       localStorage.removeItem('adminToken');
       window.location = '/admin/index.html';
     }
 
     // ---------- INIT ----------
+    loadRooms();
     loadOwners();
   </script>
 </body>
