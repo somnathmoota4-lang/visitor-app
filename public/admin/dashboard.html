@@ -30,6 +30,9 @@
     .btn-room { background: #f57c00; color: white; }
     .btn-delete { background: #c62828; color: white; }
     .no-room { color: #c62828; font-weight: bold; }
+    .btn-row { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+    .btn-row button { width: auto; margin: 0; padding: 8px 14px; font-size: 13px; }
+    .debug-box { display: none; background: #f5f5f5; padding: 10px; border-radius: 8px; margin-bottom: 10px; font-size: 12px; max-height: 250px; overflow: auto; }
   </style>
 </head>
 <body>
@@ -66,7 +69,13 @@
   <!-- Manage Owners -->
   <div class="card">
     <h3>👥 Manage Owners</h3>
-    <div id="ownerList">Loading...</div>
+    <div class="btn-row">
+      <button onclick="loadOwners()" style="background:#1565c0;">🔄 Refresh</button>
+      <button onclick="debugData()" style="background:#6a1b9a;">🔍 Debug</button>
+      <button onclick="fixBrokenLinks()" style="background:#f57c00;">🔧 Fix Links</button>
+    </div>
+    <div id="debugOutput" class="debug-box"></div>
+    <div id="ownerList" style="overflow-x:auto;">Loading...</div>
   </div>
 
   <!-- Visitor Log -->
@@ -202,7 +211,7 @@
         .then(owners => {
           const container = document.getElementById('ownerList');
           if (!owners.length) { container.innerHTML = '<p>No owners yet</p>'; return; }
-          let html = '<div style="overflow-x:auto;"><table><tr><th>Name</th><th>Email</th><th>Phone</th><th>Room</th><th>Actions</th></tr>';
+          let html = '<table><tr><th>Name</th><th>Email</th><th>Phone</th><th>Room</th><th>Actions</th></tr>';
           owners.forEach(o => {
             const roomText = o.room ? o.room.roomNumber : 'No Room';
             const roomClass = o.room ? '' : 'no-room';
@@ -218,7 +227,7 @@
               </td>
             </tr>`;
           });
-          html += '</table></div>';
+          html += '</table>';
           container.innerHTML = html;
         })
         .catch(err => console.error('Error loading owners:', err));
@@ -276,6 +285,47 @@
         else { alert(data.message || 'Owner removed'); loadRooms(); }
       })
       .catch(err => { alert('Error removing owner'); console.error(err); });
+    }
+
+    // ---------- DEBUG ----------
+    function debugData() {
+      const out = document.getElementById('debugOutput');
+      out.style.display = 'block';
+      out.innerHTML = 'Loading debug data...';
+      fetch('/api/admin/debug-data', { headers: { 'Authorization': 'Bearer ' + token } })
+        .then(res => res.json())
+        .then(data => {
+          let html = `<strong>Total Owners:</strong> ${data.totalOwners}<br>`;
+          html += `<strong>Rooms with Owner:</strong> ${data.totalRoomsWithOwner}<br><hr>`;
+          data.owners.forEach(o => {
+            const status = o.hasRoomInRoomCollection
+              ? `<span style="color:green;">✅ Room ${o.roomNumber}</span>`
+              : `<span style="color:red;">❌ NO ROOM</span>`;
+            html += `<div>${o.name} (${o.email}) — ${status}</div>`;
+          });
+          out.innerHTML = html;
+        })
+        .catch(err => { out.innerHTML = 'Error: ' + err.message; });
+    }
+
+    // ---------- FIX BROKEN LINKS ----------
+    function fixBrokenLinks() {
+      if (!confirm('This will clear stale room links and identify orphan owners. Continue?')) return;
+      const out = document.getElementById('debugOutput');
+      out.style.display = 'block';
+      out.innerHTML = 'Running fix...';
+      fetch('/api/admin/fix-broken-links', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + token }
+      })
+      .then(res => res.json())
+      .then(data => {
+        let html = `<strong>${data.message}</strong><hr>`;
+        data.results.details.forEach(d => { html += `<div>${d}</div>`; });
+        out.innerHTML = html;
+        loadRooms(); // reload rooms + owners after fix
+      })
+      .catch(err => { out.innerHTML = 'Error: ' + err.message; });
     }
 
     // ---------- VISITOR LOG ----------
