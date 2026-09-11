@@ -29,6 +29,9 @@
     .visitor-info { flex: 1; }
     .visitor-info strong { font-size: 14px; }
     .visitor-info small { font-size: 11px; color: #666; display: block; }
+    .date-row { display: flex; gap: 8px; margin-bottom: 10px; }
+    .date-row input { flex: 1; margin: 0; padding: 8px; font-size: 13px; }
+    .date-row button { width: auto; padding: 8px 12px; margin: 0; }
   </style>
 </head>
 <body>
@@ -49,16 +52,31 @@
       document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
       document.querySelector(`.nav-item[data-tab="${tab}"]`).classList.add('active');
       let html = '';
+
       if (tab === 'visitors') {
         html = `<div class="card"><h3>⏳ Pending Visitors</h3><div id="pendingList">Loading...</div></div>
-                <div class="card"><h3>📋 Recent History</h3><div id="historyList">Loading...</div></div>`;
+                <div class="card">
+                  <h3>📋 History</h3>
+                  <div class="date-row">
+                    <input type="date" id="fromDate">
+                    <input type="date" id="toDate">
+                    <button onclick="loadHistory()">🔍</button>
+                  </div>
+                  <div id="historyList">Loading...</div>
+                </div>`;
         document.getElementById('tabContent').innerHTML = html;
         loadPending();
         loadHistory();
       } else if (tab === 'complaints') {
         html = `<div class="card"><h3>📝 Raise Complaint</h3>
           <input id="complaintTitle" placeholder="Title">
-          <select id="complaintCategory"><option>Plumbing</option><option>Electrical</option><option>Cleaning</option></select>
+          <select id="complaintCategory">
+            <option value="">Select Category</option>
+            <option value="plumbing">Plumbing</option>
+            <option value="electrical">Electrical</option>
+            <option value="cleaning">Cleaning</option>
+            <option value="other">Other</option>
+          </select>
           <textarea id="complaintDesc" rows="3" placeholder="Describe issue"></textarea>
           <button class="btn-green" onclick="submitComplaint()">Submit</button>
           <div id="complaintMsg"></div>
@@ -77,6 +95,7 @@
       }
     }
 
+    // ---------- PENDING ----------
     function loadPending() {
       fetch('/api/owner/pending', { headers: { 'Authorization': 'Bearer ' + token } })
         .then(res => res.json())
@@ -101,27 +120,33 @@
             </div>`;
           });
           el.innerHTML = html;
-        })
-        .catch(err => console.error(err));
+        });
     }
 
+    // ---------- HISTORY (with date range) ----------
     function loadHistory() {
-      fetch('/api/owner/history', { headers: { 'Authorization': 'Bearer ' + token } })
+      const from = document.getElementById('fromDate') ? document.getElementById('fromDate').value : '';
+      const to = document.getElementById('toDate') ? document.getElementById('toDate').value : '';
+      let url = '/api/owner/history';
+      const params = [];
+      if (from) params.push('from=' + from);
+      if (to) params.push('to=' + to);
+      if (params.length) url += '?' + params.join('&');
+
+      fetch(url, { headers: { 'Authorization': 'Bearer ' + token } })
         .then(res => res.json())
         .then(visitors => {
           const el = document.getElementById('historyList');
           if (!el) return;
-          if (!visitors.length) {
-            el.innerHTML = '<div class="empty-state"><p>No history yet</p></div>';
-            return;
-          }
+          if (!visitors.length) { el.innerHTML = '<div class="empty-state"><p>No history in this range</p></div>'; return; }
           let html = '';
           visitors.forEach(v => {
             const badgeClass = v.status === 'approved' ? 'badge-resolved' : v.status === 'rejected' ? 'badge-urgent' : 'badge-pending';
             html += `<div class="visitor-item">
               <div class="visitor-info">
                 <strong>${v.name}</strong> <span class="badge ${badgeClass}">${v.status}</span>
-                <small>📱 ${v.phone} | 🕐 ${new Date(v.entryTime).toLocaleString('en-IN')}</small>
+                <small>📱 ${v.phone} | 🎯 ${v.purpose} | 🏢 ${v.source || 'N/A'}</small>
+                <small>🕐 ${new Date(v.entryTime).toLocaleString('en-IN')}</small>
               </div>
             </div>`;
           });
@@ -139,6 +164,7 @@
       .then(() => { loadPending(); loadHistory(); });
     }
 
+    // ---------- COMPLAINTS ----------
     function submitComplaint() {
       const title = document.getElementById('complaintTitle').value;
       const category = document.getElementById('complaintCategory').value;
@@ -150,7 +176,7 @@
         body: JSON.stringify({ title, category, description })
       })
       .then(res => res.json())
-      .then(data => {
+      .then(() => {
         document.getElementById('complaintMsg').innerHTML = '<span style="color:green;">✅ Submitted!</span>';
         loadMyComplaints();
       });
@@ -175,6 +201,7 @@
         });
     }
 
+    // ---------- PROFILE ----------
     function loadProfile() {
       fetch('/api/owner/me', { headers: { 'Authorization': 'Bearer ' + token } })
         .then(res => res.json())
@@ -203,8 +230,7 @@
     showTab('visitors');
     setInterval(() => {
       const active = document.querySelector('.nav-item.active');
-      if (active && active.dataset.tab === 'visitors') { loadPending(); loadHistory(); }
-      if (active && active.dataset.tab === 'complaints') loadMyComplaints();
+      if (active && active.dataset.tab === 'visitors') loadPending();
     }, 10000);
   </script>
 </body>
