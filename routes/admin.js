@@ -36,7 +36,6 @@ router.post('/owners/create', async (req, res) => {
       roomNumber: roomNumber
     });
 
-    // Also mark the Room document as occupied (convenience)
     const room = await Room.findOne({ roomNumber: roomNumber });
     if (room) {
       room.owner = owner._id;
@@ -98,7 +97,6 @@ router.put('/owners/:id/room', async (req, res) => {
     });
     if (roomTaken) return res.status(400).json({ error: `Room ${roomNumber} already has an owner (${roomTaken.name})` });
 
-    // Free old room in Room collection
     if (owner.roomNumber) {
       const oldRoom = await Room.findOne({ roomNumber: owner.roomNumber });
       if (oldRoom) {
@@ -108,11 +106,9 @@ router.put('/owners/:id/room', async (req, res) => {
       }
     }
 
-    // Update user
     owner.roomNumber = roomNumber.trim();
     await owner.save();
 
-    // Mark new room occupied
     const newRoom = await Room.findOne({ roomNumber: roomNumber.trim() });
     if (newRoom) {
       newRoom.owner = owner._id;
@@ -161,7 +157,7 @@ router.get('/rooms', async (req, res) => {
   }
 });
 
-// ---------- VISITOR LOG ----------
+// ---------- VISITOR LOG (no populate('room')) ----------
 router.get('/visitors-full', async (req, res) => {
   try {
     const visitors = await Visitor.find()
@@ -174,6 +170,7 @@ router.get('/visitors-full', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
 // ---------- DEBUG ----------
 router.get('/debug-data', async (req, res) => {
   try {
