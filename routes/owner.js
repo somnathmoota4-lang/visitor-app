@@ -2,30 +2,28 @@ const router = require('express').Router();
 const auth = require('../middleware/auth');
 const Visitor = require('../models/Visitor');
 const User = require('../models/User');
-const { getRoomForOwner } = require('../utils/roomHelper');
 
 router.use(auth('owner'));
 
-// Get current owner profile with room
+// ---------- OWNER PROFILE ----------
 router.get('/me', async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select('name email phone role');
+    const user = await User.findById(req.user.id).select('name email phone role roomNumber');
     if (!user) return res.status(404).json({ error: 'Owner not found' });
-    const room = await getRoomForOwner(user._id);
     res.json({
       id: user._id,
       name: user.name,
       email: user.email,
       phone: user.phone || '',
       role: user.role,
-      room: room ? { roomNumber: room.roomNumber, floor: room.floor } : null
+      roomNumber: user.roomNumber || null
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Pending visitors for this owner
+// ---------- PENDING VISITORS ----------
 router.get('/pending', async (req, res) => {
   try {
     const visitors = await Visitor.find({ owner: req.user.id, status: 'pending' })
@@ -37,7 +35,7 @@ router.get('/pending', async (req, res) => {
   }
 });
 
-// Visitor history with optional date range
+// ---------- HISTORY (with date range) ----------
 router.get('/history', async (req, res) => {
   try {
     const { from, to } = req.query;
@@ -57,7 +55,7 @@ router.get('/history', async (req, res) => {
   }
 });
 
-// Approve/Reject visitor
+// ---------- APPROVE / REJECT ----------
 router.post('/respond', async (req, res) => {
   const { visitId, action } = req.body;
   try {
@@ -77,7 +75,7 @@ router.post('/respond', async (req, res) => {
   }
 });
 
-// Save FCM token
+// ---------- FCM TOKEN ----------
 router.post('/fcm-token', async (req, res) => {
   try {
     await User.findByIdAndUpdate(req.user.id, { fcmToken: req.body.token });
