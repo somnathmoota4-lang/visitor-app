@@ -12,7 +12,6 @@ const fs = require('fs');
 // ============================================================
 const admin = require('firebase-admin');
 try {
-  // Try Render Secret File path first, then fallback to local file
   const secretPath = '/etc/secrets/firebase-admin-key.json';
   const localPath = path.join(__dirname, 'firebase-admin-key.json');
   const keyPath = fs.existsSync(secretPath) ? secretPath : localPath;
@@ -36,12 +35,11 @@ app.use(express.json({ limit: '50mb' }));
 app.use('/uploads', express.static('public/uploads'));
 app.use(express.static('public'));
 
-// Routes
+// Routes (society route removed)
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/guard', require('./routes/guard'));
 app.use('/api/owner', require('./routes/owner'));
-app.use('/api/society', require('./routes/society'));
 
 // Socket.io
 io.on('connection', (socket) => {
