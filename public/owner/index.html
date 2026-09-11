@@ -123,7 +123,7 @@
         });
     }
 
-    // ---------- HISTORY (with date range) ----------
+    // ---------- HISTORY ----------
     function loadHistory() {
       const from = document.getElementById('fromDate') ? document.getElementById('fromDate').value : '';
       const to = document.getElementById('toDate') ? document.getElementById('toDate').value : '';
@@ -214,7 +214,9 @@
               <h4>${data.name || 'Owner'}</h4>
               <p style="color:#666;">${data.email || ''}</p>
               <p style="color:#666;">📱 ${data.phone || 'Not set'}</p>
-              ${data.room ? `<p style="color:#1a237e;font-weight:bold;">🚪 Room: ${data.room.roomNumber} (Floor ${data.room.floor})</p>` : '<p style="color:#999;">No room assigned</p>'}
+              ${data.roomNumber
+                ? `<p style="color:#1a237e;font-weight:bold;margin-top:8px;">🚪 Room: ${data.roomNumber}</p>`
+                : '<p style="color:#999;margin-top:8px;">No room assigned</p>'}
             </div>`;
         })
         .catch(() => {
