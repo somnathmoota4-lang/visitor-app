@@ -10,7 +10,7 @@
     .header h2 { font-size: 22px; }
     .card { background: white; padding: 20px; margin: 15px 0; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
     .card h3 { color: #1a237e; margin-bottom: 15px; font-size: 18px; border-bottom: 2px solid #e8eaf6; padding-bottom: 8px; }
-    input, select { width: 100%; padding: 12px; margin: 8px 0; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 15px; }
+    input { width: 100%; padding: 12px; margin: 8px 0; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 15px; }
     input:focus { border-color: #1a237e; outline: none; }
     button { width: 100%; padding: 12px; background: #1a237e; color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
     button.green { background: #2e7d32; }
@@ -18,10 +18,6 @@
     .msg { padding: 10px; border-radius: 8px; margin-top: 10px; font-size: 14px; display: none; }
     .msg.success { background: #e8f5e9; color: #2e7d32; display: block; }
     .msg.error { background: #ffebee; color: #c62828; display: block; }
-    .chip-scroll { display: flex; overflow-x: auto; gap: 10px; padding: 10px 0; }
-    .chip { flex: 0 0 auto; padding: 10px 20px; background: #e8eaf6; border: 2px solid #c5cae9; border-radius: 25px; font-size: 14px; font-weight: bold; color: #1a237e; cursor: pointer; }
-    .chip.selected { background: #1a237e; color: white; border-color: #1a237e; }
-    .label { font-weight: bold; margin: 10px 0 5px; }
     table { width: 100%; border-collapse: collapse; font-size: 13px; }
     th, td { padding: 8px; border: 1px solid #ddd; text-align: left; }
     th { background: #f0f0f0; }
@@ -48,10 +44,7 @@
     <input type="email" id="ownerEmail" placeholder="Owner Email">
     <input type="tel" id="ownerPhone" placeholder="Owner Phone">
     <input type="password" id="ownerPassword" placeholder="Password">
-    <div class="label">Select Floor</div>
-    <div id="floorChips" class="chip-scroll"></div>
-    <div class="label">Select Room</div>
-    <div id="roomChips" class="chip-scroll"></div>
+    <input type="text" id="ownerRoomNumber" placeholder="Room Number (e.g., 101)">
     <button class="green" onclick="createOwner()">✅ Create Owner</button>
     <div class="msg" id="ownerMsg"></div>
   </div>
@@ -72,7 +65,7 @@
     <div class="btn-row">
       <button onclick="loadOwners()" style="background:#1565c0;">🔄 Refresh</button>
       <button onclick="debugData()" style="background:#6a1b9a;">🔍 Debug</button>
-      <button onclick="fixBrokenLinks()" style="background:#f57c00;">🔧 Fix Links</button>
+      <button onclick="fixBrokenLinks()" style="background:#f57c00;">🔧 Fix</button>
     </div>
     <div id="debugOutput" class="debug-box"></div>
     <div id="ownerList" style="overflow-x:auto;">Loading...</div>
@@ -89,101 +82,44 @@
     const token = localStorage.getItem('adminToken');
     if (!token) window.location = '/admin/index.html';
 
-    let allRooms = [];
-    let selectedFloor = null;
-    let selectedRoomId = null;
-
-    // ---------- LOAD ROOMS & OWNERS ----------
-    function loadRooms() {
-      fetch('/api/admin/rooms', { headers: { 'Authorization': 'Bearer ' + token } })
-        .then(res => res.json())
-        .then(rooms => {
-          allRooms = rooms;
-          renderFloors();
-          loadOwners();
-        })
-        .catch(err => console.error('Error loading rooms:', err));
-    }
-
-    function renderFloors() {
-      const floors = [...new Set(allRooms.map(r => r.floor))].sort((a,b) => a-b);
-      const container = document.getElementById('floorChips');
-      container.innerHTML = '';
-      floors.forEach(f => {
-        const div = document.createElement('div');
-        div.className = 'chip';
-        div.textContent = 'Floor ' + f;
-        div.onclick = () => { selectFloor(f, div); };
-        container.appendChild(div);
-      });
-    }
-
-    function selectFloor(floor, chip) {
-      selectedFloor = floor;
-      selectedRoomId = null;
-      document.querySelectorAll('#floorChips .chip').forEach(c => c.classList.remove('selected'));
-      chip.classList.add('selected');
-      renderRooms();
-    }
-
-    function renderRooms() {
-      const container = document.getElementById('roomChips');
-      container.innerHTML = '';
-      if (!selectedFloor) return;
-      const rooms = allRooms.filter(r => r.floor == selectedFloor && !r.owner);
-      if (rooms.length === 0) {
-        container.innerHTML = '<div style="color:#999;">No available rooms</div>';
-        return;
-      }
-      rooms.forEach(room => {
-        const div = document.createElement('div');
-        div.className = 'chip';
-        div.textContent = 'Room ' + room.roomNumber;
-        div.onclick = () => { selectRoom(room._id, div); };
-        container.appendChild(div);
-      });
-    }
-
-    function selectRoom(roomId, chip) {
-      selectedRoomId = roomId;
-      document.querySelectorAll('#roomChips .chip').forEach(c => c.classList.remove('selected'));
-      chip.classList.add('selected');
-    }
-
     // ---------- CREATE OWNER ----------
     function createOwner() {
-      const name = document.getElementById('ownerName').value;
-      const email = document.getElementById('ownerEmail').value;
-      const phone = document.getElementById('ownerPhone').value;
+      const name = document.getElementById('ownerName').value.trim();
+      const email = document.getElementById('ownerEmail').value.trim();
+      const phone = document.getElementById('ownerPhone').value.trim();
       const password = document.getElementById('ownerPassword').value;
+      const roomNumber = document.getElementById('ownerRoomNumber').value.trim();
       const msg = document.getElementById('ownerMsg');
-      if (!name || !email || !password || !selectedRoomId) {
-        msg.className = 'msg error'; msg.innerText = 'Fill all fields and select room'; return;
+
+      if (!name || !email || !password || !roomNumber) {
+        msg.className = 'msg error'; msg.innerText = 'Fill all fields including room number'; return;
       }
+
       fetch('/api/admin/owners/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-        body: JSON.stringify({ name, email, phone, password, roomId: selectedRoomId })
+        body: JSON.stringify({ name, email, phone, password, roomNumber })
       })
       .then(res => res.json())
       .then(data => {
         if (data.error) { msg.className = 'msg error'; msg.innerText = data.error; }
         else {
-          msg.className = 'msg success'; msg.innerText = 'Owner created!';
+          msg.className = 'msg success'; msg.innerText = data.message;
           document.getElementById('ownerName').value = '';
           document.getElementById('ownerEmail').value = '';
           document.getElementById('ownerPhone').value = '';
           document.getElementById('ownerPassword').value = '';
-          selectedFloor = null; selectedRoomId = null;
-          loadRooms();
+          document.getElementById('ownerRoomNumber').value = '';
+          loadOwners();
         }
-      });
+      })
+      .catch(() => { msg.className = 'msg error'; msg.innerText = 'Connection error'; });
     }
 
     // ---------- CREATE GUARD ----------
     function createGuard() {
-      const name = document.getElementById('guardName').value;
-      const email = document.getElementById('guardEmail').value;
+      const name = document.getElementById('guardName').value.trim();
+      const email = document.getElementById('guardEmail').value.trim();
       const password = document.getElementById('guardPassword').value;
       const msg = document.getElementById('guardMsg');
       if (!name || !email || !password) { msg.className = 'msg error'; msg.innerText = 'Fill all fields'; return; }
@@ -213,8 +149,8 @@
           if (!owners.length) { container.innerHTML = '<p>No owners yet</p>'; return; }
           let html = '<table><tr><th>Name</th><th>Email</th><th>Phone</th><th>Room</th><th>Actions</th></tr>';
           owners.forEach(o => {
-            const roomText = o.room ? o.room.roomNumber : 'No Room';
-            const roomClass = o.room ? '' : 'no-room';
+            const roomText = o.roomNumber || 'No Room';
+            const roomClass = o.roomNumber ? '' : 'no-room';
             html += `<tr>
               <td>${o.name}</td>
               <td>${o.email}</td>
@@ -222,15 +158,14 @@
               <td class="${roomClass}">${roomText}</td>
               <td>
                 <button class="action-btn btn-edit" onclick="editOwner('${o._id}','${o.name}','${o.email}','${o.phone || ''}')">✏️ Edit</button>
-                <button class="action-btn btn-room" onclick="changeRoom('${o._id}')">🔁 Room</button>
+                <button class="action-btn btn-room" onclick="changeRoom('${o._id}','${o.roomNumber || ''}')">🔁 Room</button>
                 <button class="action-btn btn-delete" onclick="removeOwner('${o._id}')">🗑️ Remove</button>
               </td>
             </tr>`;
           });
           html += '</table>';
           container.innerHTML = html;
-        })
-        .catch(err => console.error('Error loading owners:', err));
+        });
     }
 
     // ---------- EDIT OWNER ----------
@@ -255,8 +190,8 @@
     }
 
     // ---------- CHANGE ROOM ----------
-    function changeRoom(id) {
-      const roomNumber = prompt('Enter new room number (e.g., 101):');
+    function changeRoom(id, currentRoom) {
+      const roomNumber = prompt('Enter room number:', currentRoom || '');
       if (!roomNumber) return;
 
       fetch('/api/admin/owners/' + id + '/room', {
@@ -267,9 +202,8 @@
       .then(res => res.json())
       .then(data => {
         if (data.error) alert(data.error);
-        else { alert(data.message); loadRooms(); }
-      })
-      .catch(err => { alert('Error changing room'); console.error(err); });
+        else { alert(data.message); loadOwners(); }
+      });
     }
 
     // ---------- REMOVE OWNER ----------
@@ -282,38 +216,34 @@
       .then(res => res.json())
       .then(data => {
         if (data.error) alert(data.error);
-        else { alert(data.message || 'Owner removed'); loadRooms(); }
-      })
-      .catch(err => { alert('Error removing owner'); console.error(err); });
+        else { alert(data.message || 'Owner removed'); loadOwners(); }
+      });
     }
 
     // ---------- DEBUG ----------
     function debugData() {
       const out = document.getElementById('debugOutput');
       out.style.display = 'block';
-      out.innerHTML = 'Loading debug data...';
+      out.innerHTML = 'Loading...';
       fetch('/api/admin/debug-data', { headers: { 'Authorization': 'Bearer ' + token } })
         .then(res => res.json())
         .then(data => {
-          let html = `<strong>Total Owners:</strong> ${data.totalOwners}<br>`;
-          html += `<strong>Rooms with Owner:</strong> ${data.totalRoomsWithOwner}<br><hr>`;
+          let html = `<strong>Total Owners:</strong> ${data.totalOwners}<br><hr>`;
           data.owners.forEach(o => {
-            const status = o.hasRoomInRoomCollection
-              ? `<span style="color:green;">✅ Room ${o.roomNumber}</span>`
-              : `<span style="color:red;">❌ NO ROOM</span>`;
-            html += `<div>${o.name} (${o.email}) — ${status}</div>`;
+            const room = o.roomNumber ? `<span style="color:green;">✅ Room ${o.roomNumber}</span>` : `<span style="color:red;">❌ No Room</span>`;
+            html += `<div>${o.name} (${o.email}) [${o.status}] — ${room}</div>`;
           });
           out.innerHTML = html;
         })
         .catch(err => { out.innerHTML = 'Error: ' + err.message; });
     }
 
-    // ---------- FIX BROKEN LINKS ----------
+    // ---------- FIX ----------
     function fixBrokenLinks() {
-      if (!confirm('This will clear stale room links and identify orphan owners. Continue?')) return;
+      if (!confirm('Sync Room collection with user room numbers?')) return;
       const out = document.getElementById('debugOutput');
       out.style.display = 'block';
-      out.innerHTML = 'Running fix...';
+      out.innerHTML = 'Fixing...';
       fetch('/api/admin/fix-broken-links', {
         method: 'POST',
         headers: { 'Authorization': 'Bearer ' + token }
@@ -323,7 +253,7 @@
         let html = `<strong>${data.message}</strong><hr>`;
         data.results.details.forEach(d => { html += `<div>${d}</div>`; });
         out.innerHTML = html;
-        loadRooms(); // reload rooms + owners after fix
+        loadOwners();
       })
       .catch(err => { out.innerHTML = 'Error: ' + err.message; });
     }
@@ -349,8 +279,7 @@
           });
           html += '</table>';
           document.getElementById('visitorLog').innerHTML = html;
-        })
-        .catch(err => { document.getElementById('visitorLog').innerHTML = 'Error loading'; console.error(err); });
+        });
     }
 
     // ---------- LOGOUT ----------
@@ -360,7 +289,7 @@
     }
 
     // ---------- INIT ----------
-    loadRooms();
+    loadOwners();
   </script>
 </body>
 </html>
