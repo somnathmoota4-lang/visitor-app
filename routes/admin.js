@@ -144,4 +144,78 @@ router.get('/visitors-full', async (req, res) => {
   }
 });
 
+// ---------- DEBUG: See raw owner and room data ----------
+router.get('/debug-data', async (req, res) => {
+  try {
+    const owners = await User.find({ role: 'owner' }).select('name email phone status');
+    const roomsWithOwners = await Room.find({ owner: { $ne: null } }).populate('owner', 'name email');
+
+    const ownerRoomMap = await Promise.all(owners.map(async (owner) => {
+      const room = await Room.findOne({ owner: owner._id });
+      return {
+        ownerId: owner._id,
+        name: owner.name,
+        email: owner.email,
+        status: owner.status,
+        hasRoomInRoomCollection: !!room,
+        roomNumber: room ? room.roomNumber : null
+      };
+    }));
+
+    res.json({
+      totalOwners: owners.length,
+      totalRoomsWithOwner: roomsWithOwners.length,
+      owners: ownerRoomMap
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------- FIX: Repair broken owner-room links ----------
+router.post('/fix-broken-links', async (req, res) => {
+  try {
+    const results = { cleared: 0, matched: 0, orphans: [], details: [] };
+
+    // Step 1: Clear stale room.owner references (owner missing or inactive)
+    const roomsWithOwner = await Room.find({ owner: { $ne: null } });
+    for (const room of roomsWithOwner) {
+      const owner = await User.findById(room.owner);
+      if (!owner) {
+        results.details.push(`🗑️ Cleared Room ${room.roomNumber} (owner no longer exists)`);
+        room.owner = null;
+        room.isAvailable = true;
+        await room.save();
+        results.cleared++;
+      } else if (owner.role !== 'owner' || owner.status !== 'approved') {
+        results.details.push(`🗑️ Cleared Room ${room.roomNumber} (owner inactive or wrong role)`);
+        room.owner = null;
+        room.isAvailable = true;
+        await room.save();
+        results.cleared++;
+      }
+    }
+
+    // Step 2: For each active owner, verify they have a room
+    const owners = await User.find({ role: 'owner', status: 'approved' });
+    for (const owner of owners) {
+      const room = await Room.findOne({ owner: owner._id });
+      if (room) {
+        results.details.push(`✅ ${owner.name} → Room ${room.roomNumber}`);
+        results.matched++;
+      } else {
+        results.details.push(`⚠️ ${owner.name} (${owner.email}) has NO room — use 🔁 Room button to assign`);
+        results.orphans.push({ id: owner._id, name: owner.name, email: owner.email });
+      }
+    }
+
+    res.json({
+      message: `Cleared ${results.cleared} stale links, matched ${results.matched} owners with rooms, ${results.orphans.length} orphan owners`,
+      results
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
