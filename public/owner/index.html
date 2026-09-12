@@ -50,6 +50,51 @@
     const token = localStorage.getItem('ownerToken');
     if (!token) window.location = 'login.html';
 
+    // ================= FIREBASE PUSH NOTIFICATIONS =================
+const firebaseConfig = {
+  apiKey: "AIzaSyB7c8o7-wWM5D8F82AbM7V8tkTerBicZAc",
+  authDomain: "visitor-app-push.firebaseapp.com",
+  projectId: "visitor-app-push",
+  storageBucket: "visitor-app-push.firebasestorage.app",
+  messagingSenderId: "625801351744",
+  appId: "1:625801351744:web:2733c5d5b0b2f6f94f45a5"
+};
+
+// ⚠️ REPLACE THIS with your real VAPID key
+const VAPID_KEY = "BPaX53dORLPmfkTtIR2J0q7bpf7RHbAXlE4aKxIeCDcpUXroTqDt9SETV1aO79ePK4HjkRxHJDKdl-jPgkQ6WIU";
+
+try {
+  firebase.initializeApp(firebaseConfig);
+  const messaging = firebase.messaging();
+
+  // Register service worker
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/owner/firebase-messaging-sw.js')
+      .then(reg => console.log('✅ Service worker registered'))
+      .catch(err => console.log('SW error:', err));
+  }
+
+  // Request permission and save token
+  messaging.requestPermission()
+    .then(() => messaging.getToken({ vapidKey: VAPID_KEY }))
+    .then(fcmToken => {
+      console.log('📱 FCM Token:', fcmToken);
+      return fetch('/api/owner/fcm-token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token
+        },
+        body: JSON.stringify({ token: fcmToken })
+      });
+    })
+    .then(res => res.json())
+    .then(data => console.log('✅ FCM token saved to server:', data))
+    .catch(err => console.log('⚠️ Push setup:', err.message));
+} catch (err) {
+  console.log('⚠️ Firebase init skipped:', err.message);
+}
+// ================================================================
     function showTab(tab) {
       document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
       document.querySelector(`.nav-item[data-tab="${tab}"]`).classList.add('active');
