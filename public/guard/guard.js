@@ -302,7 +302,8 @@ function loadGuardProfile() {
 
 function logout() {
   localStorage.removeItem('guardToken');
-  window.location = 'login.html';
+  localStorage.removeItem('guardUser');
+  window.location = '/app/';
 }
 
 socket.on('owner_response', data => {
