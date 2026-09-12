@@ -3,6 +3,7 @@ const auth = require('../middleware/auth');
 const Visitor = require('../models/Visitor');
 const User = require('../models/User');
 const upload = require('../middleware/upload');
+const admin = require('firebase-admin');
 
 router.use(auth('guard'));
 
@@ -23,7 +24,7 @@ router.get('/rooms', async (req, res) => {
 
     res.json(roomsList);
   } catch (err) {
-    console.error('Error loading rooms:', err);
+    console.error('Error loading rooms for guard:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -35,7 +36,9 @@ router.post('/checkin', upload.single('photo'), async (req, res) => {
 
   try {
     const roomNumber = String(roomId || '').trim();
-    if (!roomNumber) return res.status(400).json({ error: 'Room number is required' });
+    if (!roomNumber) {
+      return res.status(400).json({ error: 'Room number is required' });
+    }
 
     const owner = await User.findOne({
       role: 'owner',
@@ -43,7 +46,9 @@ router.post('/checkin', upload.single('photo'), async (req, res) => {
       roomNumber: roomNumber
     });
 
-    if (!owner) return res.status(400).json({ error: 'No owner found for Room ' + roomNumber });
+    if (!owner) {
+      return res.status(400).json({ error: 'No owner found for Room ' + roomNumber });
+    }
 
     const visitor = await Visitor.create({
       name,
@@ -51,12 +56,13 @@ router.post('/checkin', upload.single('photo'), async (req, res) => {
       purpose,
       source,
       photo,
-      roomNumber: roomNumber,   // <-- string stored directly
+      roomNumber: roomNumber,
       owner: owner._id,
       guard: req.user.id,
       status: 'pending'
     });
 
+    // Real-time notification via Socket.io
     const io = req.app.get('io');
     if (io) {
       io.to(visitor._id.toString()).emit('pending_visitor', {
@@ -66,7 +72,32 @@ router.post('/checkin', upload.single('photo'), async (req, res) => {
       });
     }
 
-    console.log(`Visitor ${name} checked in → Room ${roomNumber} (Owner: ${owner.name})`);
+    // ============================================================
+    // PUSH NOTIFICATION TO OWNER
+    // ============================================================
+    try {
+      if (owner.fcmToken) {
+        await admin.messaging().send({
+          token: owner.fcmToken,
+          notification: {
+            title: '🚨 New Visitor',
+            body: `${name} is here to meet you (${purpose})`
+          },
+          data: {
+            visitId: visitor._id.toString(),
+            type: 'visitor_request'
+          }
+        });
+        console.log('✅ Push notification sent to owner:', owner.name);
+      } else {
+        console.log('⚠️ Owner has no FCM token yet (has not allowed notifications)');
+      }
+    } catch (pushErr) {
+      console.log('⚠️ Push notification failed:', pushErr.message);
+    }
+    // ============================================================
+
+    console.log(`✅ Visitor ${name} checked in → Room ${roomNumber} (Owner: ${owner.name})`);
 
     res.json({
       message: 'Visitor registered, waiting for owner approval',
@@ -93,6 +124,7 @@ router.get('/today', async (req, res) => {
 
     res.json(visitors);
   } catch (err) {
+    console.error('Error fetching today visitors:', err);
     res.status(500).json({ error: err.message });
   }
 });
