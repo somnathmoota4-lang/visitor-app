@@ -35,7 +35,7 @@ app.use(express.json({ limit: '50mb' }));
 app.use('/uploads', express.static('public/uploads'));
 app.use(express.static('public'));
 
-// Routes (society route removed)
+// Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/guard', require('./routes/guard'));
@@ -55,27 +55,27 @@ app.set('io', io);
 
 // Connect to MongoDB and start server
 mongoose.connect(process.env.MONGODB_URI)
-  .then(() => {
+  .then(async () => {
     console.log('MongoDB connected');
 
     // Create default super admin if not exists
     const User = require('./models/User');
-    User.findOne({ role: 'super_admin' }).then(adminUser => {
-      if (!adminUser) {
-        User.create({
-          name: 'Super Admin',
-          email: 'admin@building.com',
-          password: 'Admin@123',
-          role: 'super_admin',
-          status: 'approved'
-        }).then(() => console.log('Default super admin created: admin@building.com / Admin@123'));
-      }
-    });
+    const adminUser = await User.findOne({ role: 'super_admin' });
+    if (!adminUser) {
+      await User.create({
+        name: 'Super Admin',
+        email: 'admin@building.com',
+        password: 'Admin@123',
+        role: 'super_admin',
+        status: 'approved'
+      });
+      console.log('Default super admin created: admin@building.com / Admin@123');
+    }
 
-    // Delete existing rooms and create fresh (23 floors × 13 rooms = 299 rooms)
+    // Create rooms ONLY IF they don't exist
     const Room = require('./models/Room');
-    Room.deleteMany({}).then(() => {
-      console.log('Old rooms cleared');
+    const roomCount = await Room.countDocuments();
+    if (roomCount === 0) {
       const rooms = [];
       for (let floor = 1; floor <= 23; floor++) {
         for (let roomNum = 1; roomNum <= 13; roomNum++) {
@@ -85,8 +85,11 @@ mongoose.connect(process.env.MONGODB_URI)
           });
         }
       }
-      Room.insertMany(rooms).then(() => console.log('299 rooms created (23 floors x 13 rooms)'));
-    });
+      await Room.insertMany(rooms);
+      console.log('299 rooms created (23 floors x 13 rooms)');
+    } else {
+      console.log(`Rooms already exist (${roomCount}) — skipping creation`);
+    }
 
     server.listen(process.env.PORT || 5000, () => {
       console.log(`Server running on port ${process.env.PORT || 5000}`);
