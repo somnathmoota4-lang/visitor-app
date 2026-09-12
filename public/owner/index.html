@@ -33,6 +33,8 @@
     .date-row input { flex: 1; margin: 0; padding: 8px; font-size: 13px; }
     .date-row button { width: auto; padding: 8px 12px; margin: 0; }
   </style>
+
+  <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-messaging-compat.js"></script>
 </head>
@@ -50,51 +52,52 @@
     const token = localStorage.getItem('ownerToken');
     if (!token) window.location = 'login.html';
 
-    // ================= FIREBASE PUSH NOTIFICATIONS =================
-const firebaseConfig = {
-  apiKey: "AIzaSyB7c8o7-wWM5D8F82AbM7V8tkTerBicZAc",
-  authDomain: "visitor-app-push.firebaseapp.com",
-  projectId: "visitor-app-push",
-  storageBucket: "visitor-app-push.firebasestorage.app",
-  messagingSenderId: "625801351744",
-  appId: "1:625801351744:web:2733c5d5b0b2f6f94f45a5"
-};
+    // ====================================================
+    // FIREBASE PUSH NOTIFICATIONS
+    // ====================================================
+    const firebaseConfig = {
+      apiKey: "AIzaSyB7c8o7-wWM5D8F82AbM7V8tkTerBicZAc",
+      authDomain: "visitor-app-push.firebaseapp.com",
+      projectId: "visitor-app-push",
+      storageBucket: "visitor-app-push.firebasestorage.app",
+      messagingSenderId: "625801351744",
+      appId: "1:625801351744:web:2733c5d5b0b2f6f94f45a5"
+    };
 
-// ⚠️ REPLACE THIS with your real VAPID key
-const VAPID_KEY = "BPaX53dORLPmfkTtIR2J0q7bpf7RHbAXlE4aKxIeCDcpUXroTqDt9SETV1aO79ePK4HjkRxHJDKdl-jPgkQ6WIU";
+    // ⚠️ REPLACE THIS with your real VAPID key from Firebase Cloud Messaging tab
+    const VAPID_KEY = "PASTE_YOUR_VAPID_KEY_HERE";
 
-try {
-  firebase.initializeApp(firebaseConfig);
-  const messaging = firebase.messaging();
+    try {
+      firebase.initializeApp(firebaseConfig);
+      const messaging = firebase.messaging();
 
-  // Register service worker
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/owner/firebase-messaging-sw.js')
-      .then(reg => console.log('✅ Service worker registered'))
-      .catch(err => console.log('SW error:', err));
-  }
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/owner/firebase-messaging-sw.js')
+          .then(() => console.log('✅ Service worker registered'))
+          .catch(err => console.log('SW error:', err));
+      }
 
-  // Request permission and save token
-  messaging.requestPermission()
-    .then(() => messaging.getToken({ vapidKey: VAPID_KEY }))
-    .then(fcmToken => {
-      console.log('📱 FCM Token:', fcmToken);
-      return fetch('/api/owner/fcm-token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + token
-        },
-        body: JSON.stringify({ token: fcmToken })
-      });
-    })
-    .then(res => res.json())
-    .then(data => console.log('✅ FCM token saved to server:', data))
-    .catch(err => console.log('⚠️ Push setup:', err.message));
-} catch (err) {
-  console.log('⚠️ Firebase init skipped:', err.message);
-}
-// ================================================================
+      messaging.requestPermission()
+        .then(() => messaging.getToken({ vapidKey: VAPID_KEY }))
+        .then(fcmToken => {
+          console.log('📱 FCM Token:', fcmToken);
+          return fetch('/api/owner/fcm-token', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + token
+            },
+            body: JSON.stringify({ token: fcmToken })
+          });
+        })
+        .then(res => res.json())
+        .then(data => console.log('✅ FCM token saved:', data))
+        .catch(err => console.log('⚠️ Push setup:', err.message));
+    } catch (err) {
+      console.log('⚠️ Firebase init skipped:', err.message);
+    }
+    // ====================================================
+
     function showTab(tab) {
       document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
       document.querySelector(`.nav-item[data-tab="${tab}"]`).classList.add('active');
@@ -152,7 +155,7 @@ try {
       }
     }
 
-    // ---------- PENDING (uses roomNumber string directly) ----------
+    // ---------- PENDING ----------
     function loadPending() {
       fetch('/api/owner/pending', { headers: { 'Authorization': 'Bearer ' + token } })
         .then(res => res.json())
