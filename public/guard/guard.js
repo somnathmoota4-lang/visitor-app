@@ -14,7 +14,7 @@ var firebaseConfig = {
 };
 
 // ⚠️ REPLACE THIS with your real VAPID key
-var VAPID_KEY = "PASTE_YOUR_VAPID_KEY_HERE";
+var VAPID_KEY = "BH_fQwewsSrJ7DLHFS3ORQIb16gxEOHMnYTRCIKPhdjhwheqBGkHh6HGWzNlSUYHxR6-4ukqF9LmswUh1jLdFLM";
 
 try {
   firebase.initializeApp(firebaseConfig);
