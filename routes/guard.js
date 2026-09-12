@@ -16,15 +16,35 @@ router.get('/rooms', async (req, res) => {
       roomNumber: { $ne: '' }
     }).select('name roomNumber phone');
 
-    const roomsList = owners.map(o => ({
-      roomNumber: o.roomNumber,
-      floor: parseInt(o.roomNumber.charAt(0)) || 0,
-      owner: { name: o.name, phone: o.phone || '' }
-    }));
+    const roomsList = owners.map(o => {
+      // Extract floor correctly:
+      // "101" (3 chars) → floor = 1
+      // "1001" (4 chars) → floor = 10
+      // "2313" (4 chars) → floor = 23
+      const roomStr = String(o.roomNumber);
+      const floorDigits = roomStr.length - 2; // last 2 digits = room within floor
+      const floor = parseInt(roomStr.substring(0, floorDigits)) || 0;
+
+      return {
+        roomNumber: o.roomNumber,
+        floor: floor,
+        owner: { name: o.name, phone: o.phone || '' }
+      };
+    });
 
     res.json(roomsList);
   } catch (err) {
     console.error('Error loading rooms for guard:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------- SAVE GUARD'S FCM TOKEN ----------
+router.post('/fcm-token', async (req, res) => {
+  try {
+    await User.findByIdAndUpdate(req.user.id, { fcmToken: req.body.token });
+    res.json({ success: true });
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
@@ -72,9 +92,7 @@ router.post('/checkin', upload.single('photo'), async (req, res) => {
       });
     }
 
-    // ============================================================
-    // PUSH NOTIFICATION TO OWNER
-    // ============================================================
+    // Push notification to owner
     try {
       if (owner.fcmToken) {
         await admin.messaging().send({
@@ -88,14 +106,13 @@ router.post('/checkin', upload.single('photo'), async (req, res) => {
             type: 'visitor_request'
           }
         });
-        console.log('✅ Push notification sent to owner:', owner.name);
+        console.log('✅ Push sent to owner:', owner.name);
       } else {
-        console.log('⚠️ Owner has no FCM token yet (has not allowed notifications)');
+        console.log('⚠️ Owner has no FCM token');
       }
     } catch (pushErr) {
-      console.log('⚠️ Push notification failed:', pushErr.message);
+      console.log('⚠️ Push to owner failed:', pushErr.message);
     }
-    // ============================================================
 
     console.log(`✅ Visitor ${name} checked in → Room ${roomNumber} (Owner: ${owner.name})`);
 
