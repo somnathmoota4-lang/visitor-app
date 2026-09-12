@@ -34,7 +34,6 @@
     .date-row button { width: auto; padding: 8px 12px; margin: 0; }
   </style>
 
-  <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-messaging-compat.js"></script>
 </head>
@@ -56,28 +55,21 @@
     // FIREBASE PUSH NOTIFICATIONS
     // ====================================================
     const firebaseConfig = {
-      apiKey: "AIzaSyB7c8o7-wWM5D8F82AbM7V8tkTerBicZAc",
-      authDomain: "visitor-app-push.firebaseapp.com",
-      projectId: "visitor-app-push",
-      storageBucket: "visitor-app-push.firebasestorage.app",
-      messagingSenderId: "625801351744",
-      appId: "1:625801351744:web:2733c5d5b0b2f6f94f45a5"
+      apiKey: "AIzaSyAgdLSNm6vG-ZQ2P9B7WtZuiJYvywj6L_Y",
+      authDomain: "visitor-app-push-47fd8.firebaseapp.com",
+      projectId: "visitor-app-push-47fd8",
+      storageBucket: "visitor-app-push-47fd8.firebasestorage.app",
+      messagingSenderId: "452927501608",
+      appId: "1:452927501608:web:d9ad76cb143bcea7ed0c1d"
     };
 
-    const VAPID_KEY = "BPaX53dORLPmfkTtIR2J0q7bpf7RHbAXlE4aKxIeCDcpUXroTqDt9SETV1aO79ePK4HjkRxHJDKdl-jPgkQ6WIU";
+    // ⚠️ REPLACE THIS with your new VAPID key
+    const VAPID_KEY = "BH_fQwewsSrJ7DLHFS3ORQIb16gxEOHMnYTRCIKPhdjhwheqBGkHh6HGWzNlSUYHxR6-4ukqF9LmswUh1jLdFLM";
 
     try {
       firebase.initializeApp(firebaseConfig);
       const messaging = firebase.messaging();
 
-      // Register service worker
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/owner/firebase-messaging-sw.js')
-          .then(() => console.log('✅ Service worker registered'))
-          .catch(err => console.log('SW error:', err));
-      }
-
-      // Handle notification when app is OPEN (foreground)
       messaging.onMessage((payload) => {
         console.log('🔔 Foreground message:', payload);
         const title = payload.notification?.title || 'Visitor Alert';
@@ -88,13 +80,19 @@
         loadPending();
       });
 
-      // Request permission using the browser API (not Firebase's deprecated one)
       function setupToken() {
         Notification.requestPermission()
           .then(permission => {
             console.log('🔔 Permission status:', permission);
             if (permission === 'granted') {
-              return messaging.getToken({ vapidKey: VAPID_KEY });
+              return navigator.serviceWorker.register('/owner/firebase-messaging-sw.js')
+                .then(registration => {
+                  console.log('✅ Service worker registered for FCM');
+                  return messaging.getToken({
+                    vapidKey: VAPID_KEY,
+                    serviceWorkerRegistration: registration
+                  });
+                });
             } else {
               throw new Error('Permission not granted');
             }
@@ -116,7 +114,6 @@
           .catch(err => console.log('⚠️ Push setup:', err.message));
       }
 
-      // Run after a short delay to ensure page is ready
       setTimeout(setupToken, 1000);
     } catch (err) {
       console.log('⚠️ Firebase init skipped:', err.message);
@@ -180,7 +177,6 @@
       }
     }
 
-    // ---------- PENDING ----------
     function loadPending() {
       fetch('/api/owner/pending', { headers: { 'Authorization': 'Bearer ' + token } })
         .then(res => res.json())
@@ -209,7 +205,6 @@
         });
     }
 
-    // ---------- HISTORY ----------
     function loadHistory() {
       const from = document.getElementById('fromDate') ? document.getElementById('fromDate').value : '';
       const to = document.getElementById('toDate') ? document.getElementById('toDate').value : '';
@@ -250,7 +245,6 @@
       .then(() => { loadPending(); });
     }
 
-    // ---------- COMPLAINTS ----------
     function submitComplaint() {
       const title = document.getElementById('complaintTitle').value;
       const category = document.getElementById('complaintCategory').value;
@@ -265,12 +259,18 @@
       .then(() => {
         document.getElementById('complaintMsg').innerHTML = '<span style="color:green;">✅ Submitted!</span>';
         loadMyComplaints();
+      })
+      .catch(() => {
+        document.getElementById('complaintMsg').innerHTML = '<span style="color:#c62828;">Feature coming soon</span>';
       });
     }
 
     function loadMyComplaints() {
       fetch('/api/society/complaints/my', { headers: { 'Authorization': 'Bearer ' + token } })
-        .then(res => res.json())
+        .then(res => {
+          if (!res.ok) return [];
+          return res.json();
+        })
         .then(complaints => {
           const el = document.getElementById('complaintList');
           if (!el) return;
@@ -284,10 +284,13 @@
             </div>`;
           });
           el.innerHTML = html;
+        })
+        .catch(() => {
+          const el = document.getElementById('complaintList');
+          if (el) el.innerHTML = '<p>Complaints feature coming soon</p>';
         });
     }
 
-    // ---------- PROFILE ----------
     function loadProfile() {
       fetch('/api/owner/me', { headers: { 'Authorization': 'Bearer ' + token } })
         .then(res => res.json())
