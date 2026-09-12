@@ -64,35 +64,60 @@
       appId: "1:625801351744:web:2733c5d5b0b2f6f94f45a5"
     };
 
-    // ⚠️ REPLACE THIS with your real VAPID key from Firebase Cloud Messaging tab
     const VAPID_KEY = "BPaX53dORLPmfkTtIR2J0q7bpf7RHbAXlE4aKxIeCDcpUXroTqDt9SETV1aO79ePK4HjkRxHJDKdl-jPgkQ6WIU";
 
     try {
       firebase.initializeApp(firebaseConfig);
       const messaging = firebase.messaging();
 
+      // Register service worker
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('/owner/firebase-messaging-sw.js')
           .then(() => console.log('✅ Service worker registered'))
           .catch(err => console.log('SW error:', err));
       }
 
-      messaging.requestPermission()
-        .then(() => messaging.getToken({ vapidKey: VAPID_KEY }))
-        .then(fcmToken => {
-          console.log('📱 FCM Token:', fcmToken);
-          return fetch('/api/owner/fcm-token', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer ' + token
-            },
-            body: JSON.stringify({ token: fcmToken })
-          });
-        })
-        .then(res => res.json())
-        .then(data => console.log('✅ FCM token saved:', data))
-        .catch(err => console.log('⚠️ Push setup:', err.message));
+      // Handle notification when app is OPEN (foreground)
+      messaging.onMessage((payload) => {
+        console.log('🔔 Foreground message:', payload);
+        const title = payload.notification?.title || 'Visitor Alert';
+        const body = payload.notification?.body || 'New visitor';
+        if (Notification.permission === 'granted') {
+          new Notification(title, { body: body });
+        }
+        loadPending();
+      });
+
+      // Request permission using the browser API (not Firebase's deprecated one)
+      function setupToken() {
+        Notification.requestPermission()
+          .then(permission => {
+            console.log('🔔 Permission status:', permission);
+            if (permission === 'granted') {
+              return messaging.getToken({ vapidKey: VAPID_KEY });
+            } else {
+              throw new Error('Permission not granted');
+            }
+          })
+          .then(fcmToken => {
+            if (!fcmToken) throw new Error('No FCM token returned');
+            console.log('📱 FCM Token:', fcmToken);
+            return fetch('/api/owner/fcm-token', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + token
+              },
+              body: JSON.stringify({ token: fcmToken })
+            });
+          })
+          .then(res => res.json())
+          .then(data => console.log('✅ FCM token saved:', data))
+          .catch(err => console.log('⚠️ Push setup:', err.message));
+      }
+
+      // Run after a short delay to ensure page is ready
+      setTimeout(setupToken, 1000);
     } catch (err) {
       console.log('⚠️ Firebase init skipped:', err.message);
     }
