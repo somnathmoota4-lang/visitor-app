@@ -314,9 +314,10 @@
     }
 
     function logout() {
-      localStorage.removeItem('ownerToken');
-      window.location = 'login.html';
-    }
+  localStorage.removeItem('ownerToken');
+  localStorage.removeItem('ownerUser');
+  window.location = '/app/';
+}
 
     showTab('visitors');
     setInterval(() => {
