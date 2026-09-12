@@ -1,6 +1,76 @@
 var token = localStorage.getItem('guardToken');
 if (!token) window.location = 'login.html';
 
+// ====================================================
+// FIREBASE PUSH NOTIFICATIONS FOR GUARD
+// ====================================================
+var firebaseConfig = {
+  apiKey: "AIzaSyAgdLSNm6vG-ZQ2P9B7WtZuiJYvywj6L_Y",
+  authDomain: "visitor-app-push-47fd8.firebaseapp.com",
+  projectId: "visitor-app-push-47fd8",
+  storageBucket: "visitor-app-push-47fd8.firebasestorage.app",
+  messagingSenderId: "452927501608",
+  appId: "1:452927501608:web:d9ad76cb143bcea7ed0c1d"
+};
+
+// ⚠️ REPLACE THIS with your real VAPID key
+var VAPID_KEY = "PASTE_YOUR_VAPID_KEY_HERE";
+
+try {
+  firebase.initializeApp(firebaseConfig);
+  var messaging = firebase.messaging();
+
+  messaging.onMessage(function(payload) {
+    console.log('🔔 Foreground message:', payload);
+    var title = (payload.notification && payload.notification.title) || 'Guard Alert';
+    var body = (payload.notification && payload.notification.body) || 'Owner responded';
+    if (Notification.permission === 'granted') {
+      new Notification(title, { body: body });
+    }
+    // Refresh queue display
+    if (typeof updateQueueDisplay === 'function') updateQueueDisplay();
+    if (typeof loadHistory === 'function') loadHistory();
+  });
+
+  function setupGuardToken() {
+    Notification.requestPermission()
+      .then(function(permission) {
+        console.log('🔔 Guard permission:', permission);
+        if (permission === 'granted') {
+          return navigator.serviceWorker.register('/guard/firebase-messaging-sw.js')
+            .then(function(registration) {
+              console.log('✅ Guard SW registered');
+              return messaging.getToken({
+                vapidKey: VAPID_KEY,
+                serviceWorkerRegistration: registration
+              });
+            });
+        } else {
+          throw new Error('Permission not granted');
+        }
+      })
+      .then(function(fcmToken) {
+        if (!fcmToken) throw new Error('No FCM token');
+        console.log('📱 Guard FCM Token:', fcmToken);
+        return fetch('/api/guard/fcm-token', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
+          },
+          body: JSON.stringify({ token: fcmToken })
+        });
+      })
+      .then(function(res) { return res.json(); })
+      .then(function(data) { console.log('✅ Guard FCM token saved:', data); })
+      .catch(function(err) { console.log('⚠️ Guard push setup:', err.message); });
+  }
+
+  setTimeout(setupGuardToken, 1000);
+} catch (err) {
+  console.log('⚠️ Guard Firebase init skipped:', err.message);
+}
+// ====================================================
 var socket = io();
 var allRooms = [];
 var visitorQueue = [];
