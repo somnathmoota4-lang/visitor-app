@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="theme-color" content="#1a237e">
+  <title>Visitor App</title>
+  <link rel="manifest" href="/app/manifest.json">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: linear-gradient(135deg, #1a237e, #283593);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .box {
+      background: white;
+      padding: 32px 24px;
+      border-radius: 20px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+      width: 100%;
+      max-width: 380px;
+    }
+    .logo {
+      text-align: center;
+      font-size: 60px;
+      margin-bottom: 10px;
+    }
+    h1 {
+      text-align: center;
+      color: #1a237e;
+      font-size: 24px;
+      margin-bottom: 6px;
+    }
+    .subtitle {
+      text-align: center;
+      color: #666;
+      font-size: 14px;
+      margin-bottom: 24px;
+    }
+    label {
+      display: block;
+      font-weight: 600;
+      color: #333;
+      font-size: 14px;
+      margin-bottom: 6px;
+      margin-top: 12px;
+    }
+    input {
+      width: 100%;
+      padding: 14px;
+      border: 2px solid #e0e0e0;
+      border-radius: 10px;
+      font-size: 16px;
+      transition: border-color 0.2s;
+    }
+    input:focus {
+      outline: none;
+      border-color: #1a237e;
+    }
+    button {
+      width: 100%;
+      padding: 15px;
+      background: #1a237e;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 17px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 20px;
+      transition: background 0.2s;
+    }
+    button:active { background: #283593; }
+    button:disabled { background: #999; cursor: not-allowed; }
+    .msg {
+      text-align: center;
+      margin-top: 14px;
+      padding: 10px;
+      border-radius: 8px;
+      font-size: 14px;
+      display: none;
+    }
+    .msg.error { background: #ffebee; color: #c62828; display: block; }
+    .msg.info { background: #e3f2fd; color: #1565c0; display: block; }
+    .msg.success { background: #e8f5e9; color: #2e7d32; display: block; }
+    .forgot {
+      display: block;
+      text-align: center;
+      margin-top: 16px;
+      color: #1a237e;
+      font-size: 14px;
+      text-decoration: none;
+    }
+    .footer {
+      text-align: center;
+      color: #999;
+      font-size: 12px;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <div class="logo">🏢</div>
+    <h1>Visitor App</h1>
+    <p class="subtitle">Sign in to continue</p>
+
+    <label>Email</label>
+    <input type="email" id="email" placeholder="Enter your email" autocomplete="email">
+
+    <label>Password</label>
+    <input type="password" id="password" placeholder="Enter your password" autocomplete="current-password">
+
+    <button id="loginBtn" onclick="login()">🔐 Sign In</button>
+
+    <div class="msg" id="msg"></div>
+
+    <a class="forgot" href="/forgot-password.html">Forgot Password?</a>
+
+    <p class="footer">Version 1.0</p>
+  </div>
+
+  <script>
+    // If already logged in, redirect immediately
+    const existingGuard = localStorage.getItem('guardToken');
+    const existingOwner = localStorage.getItem('ownerToken');
+    if (existingGuard) window.location = '/guard/checkin.html';
+    if (existingOwner) window.location = '/owner/index.html';
+
+    function showMsg(text, type) {
+      const el = document.getElementById('msg');
+      el.className = 'msg ' + type;
+      el.innerText = text;
+    }
+
+    function login() {
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const btn = document.getElementById('loginBtn');
+
+      if (!email || !password) {
+        showMsg('Please enter email and password', 'error');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerText = '⏳ Signing in...';
+
+      fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email, password: password })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (!data.token) {
+          btn.disabled = false;
+          btn.innerText = '🔐 Sign In';
+          showMsg(data.error || 'Login failed', 'error');
+          return;
+        }
+
+        const role = data.user.role;
+
+        if (role === 'guard') {
+          localStorage.setItem('guardToken', data.token);
+          localStorage.setItem('guardUser', JSON.stringify(data.user));
+          showMsg('Welcome, Guard!', 'success');
+          setTimeout(() => window.location = '/guard/checkin.html', 500);
+
+        } else if (role === 'owner') {
+          localStorage.setItem('ownerToken', data.token);
+          localStorage.setItem('ownerUser', JSON.stringify(data.user));
+          showMsg('Welcome!', 'success');
+          setTimeout(() => window.location = '/owner/index.html', 500);
+
+        } else if (role === 'super_admin') {
+          btn.disabled = false;
+          btn.innerText = '🔐 Sign In';
+          showMsg('Admin access is web-only. Please visit the admin portal in a browser.', 'info');
+
+        } else {
+          btn.disabled = false;
+          btn.innerText = '🔐 Sign In';
+          showMsg('Unknown role. Contact administrator.', 'error');
+        }
+      })
+      .catch(() => {
+        btn.disabled = false;
+        btn.innerText = '🔐 Sign In';
+        showMsg('Connection error. Please try again.', 'error');
+      });
+    }
+
+    // Allow Enter key to submit
+    document.getElementById('password').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') login();
+    });
+  </script>
+</body>
+</html>
