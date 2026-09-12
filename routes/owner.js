@@ -64,8 +64,35 @@ router.post('/respond', async (req, res) => {
     visitor.status = action === 'approve' ? 'approved' : 'rejected';
     await visitor.save();
 
+    // Socket emit to guard's page
     const io = req.app.get('io');
     io.to(visitId).emit('owner_response', { visitId, status: visitor.status });
+
+    // Push notification to guard
+    try {
+      const admin = require('firebase-admin');
+      const guardUser = await User.findById(visitor.guard);
+      if (guardUser && guardUser.fcmToken) {
+        const isApproved = visitor.status === 'approved';
+        await admin.messaging().send({
+          token: guardUser.fcmToken,
+          notification: {
+            title: isApproved ? '✅ Entry Approved' : '❌ Entry Rejected',
+            body: `${visitor.name} for Room ${visitor.roomNumber} — ${isApproved ? 'Allow entry' : 'Deny entry'}`
+          },
+          data: {
+            visitId: visitId,
+            type: 'owner_response',
+            status: visitor.status
+          }
+        });
+        console.log('✅ Push sent to guard:', guardUser.name);
+      } else {
+        console.log('⚠️ Guard has no FCM token');
+      }
+    } catch (pushErr) {
+      console.log('⚠️ Push to guard failed:', pushErr.message);
+    }
 
     res.json({ message: `Visitor ${action}d`, visitor });
   } catch (err) {
